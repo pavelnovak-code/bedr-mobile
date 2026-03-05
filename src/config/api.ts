@@ -22,28 +22,35 @@ export const endpoints = {
   metaLogin:       '/api/auth/meta',
   forgotPassword:  '/api/auth/forgot-password',
   resetPassword:   '/api/auth/reset-password',
+  completeProfile: '/api/auth/complete-profile',
 
   // Users / Profile
   profile:         '/api/users/profile',
   updateProfile:   '/api/users/profile',
-  uploadAvatar:    '/api/users/avatar',
+  uploadAvatar:    '/api/users/profile/avatar/upload',
+  updateAvatar:    '/api/users/profile/avatar',
   pushToken:       '/api/users/push-token',
   myOffers:        '/api/users/offers',
+  offerSeen:       (id: number) => `/api/users/offers/${id}/seen`,
+  offerRedeem:     (id: number) => `/api/users/offers/${id}/redeem`,
   referral:        '/api/users/referral',
+  referralStats:   '/api/users/referral/stats',
+  referralInvite:  '/api/users/referral/invite',
   badges:          '/api/users/badges',
+  myLessons:       '/api/users/lessons',
   gdprConsent:     '/api/users/consent',
 
   // Reservations
-  myReservations:  '/api/reservations/my',
-  bookReservation: '/api/reservations/book',
+  myReservations:  '/api/reservations',
+  bookReservation: '/api/reservations',
   moveReservation: (id: number) => `/api/reservations/${id}/move`,
-  cancelReservation: (id: number) => `/api/reservations/${id}/cancel`,
+  cancelReservation: (id: number) => `/api/reservations/${id}`,
 
   // Packages
   packages:        '/api/packages',
 
   // Purchases
-  myPurchases:     '/api/purchases/my',
+  myPurchases:     '/api/purchases',
   createPurchase:  '/api/purchases',
 
   // Slots
@@ -54,5 +61,5 @@ export const endpoints = {
   myActiveStudios: '/api/studios/my-active',
 
   // CRM
-  validatePromo:   '/api/crm/validate-promo',
+  validatePromo:   '/api/crm/promo-codes/validate',
 } as const;

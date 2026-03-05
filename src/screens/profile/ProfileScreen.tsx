@@ -69,17 +69,23 @@ export default function ProfileScreen() {
     if (!studioId) return;
     try {
       if (activeTab === 'purchases') {
-        setPurchases(await getMyPurchases(studioId));
+        const raw = await getMyPurchases(studioId);
+        setPurchases(Array.isArray(raw) ? raw : (raw as any)?.purchases || []);
       } else if (activeTab === 'lessons') {
-        setReservations(await getMyReservations(studioId));
+        const raw = await getMyReservations(studioId);
+        setReservations(Array.isArray(raw) ? raw : (raw as any)?.reservations || []);
       } else if (activeTab === 'badges') {
-        setBadges(await usersApi.getBadges());
+        const raw = await usersApi.getBadges();
+        setBadges(Array.isArray(raw) ? raw : (raw as any)?.badges || []);
       } else if (activeTab === 'offers') {
-        setOffers(await usersApi.getOffers());
+        const raw = await usersApi.getOffers();
+        setOffers(Array.isArray(raw) ? raw : (raw as any)?.offers || []);
       } else if (activeTab === 'referral') {
         setReferral(await usersApi.getReferral());
       }
-    } catch {}
+    } catch (err) {
+      console.warn('[Profile] Tab data error:', activeTab, err);
+    }
   }, [activeTab, studioId]);
 
   useFocusEffect(useCallback(() => { loadTabData(); }, [loadTabData]));

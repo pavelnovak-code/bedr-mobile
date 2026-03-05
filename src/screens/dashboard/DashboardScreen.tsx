@@ -36,24 +36,33 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
-    if (!studioId) return;
+    console.log('[Dashboard] loadData, studioId:', studioId);
+    if (!studioId) { setLoading(false); return; }
     try {
-      const [res, purch, bdg] = await Promise.all([
-        getMyReservations(studioId),
-        getMyPurchases(studioId),
-        getBadges().catch(() => []),
+      const [resRaw, purchRaw, bdg] = await Promise.all([
+        getMyReservations(studioId).catch(() => []),
+        getMyPurchases(studioId).catch(() => []),
+        getBadges().catch(() => ({ badges: [] })),
       ]);
+      // Bezpečná konverze – API může vrátit objekt místo pole
+      const res = Array.isArray(resRaw) ? resRaw : (resRaw as any)?.reservations || [];
+      const purch = Array.isArray(purchRaw) ? purchRaw : (purchRaw as any)?.purchases || [];
+      console.log('[Dashboard] reservations:', res.length, 'purchases:', purch.length);
       // Jen budoucí potvrzené lekce
       const now = new Date().toISOString();
       setReservations(
-        res.filter(r => r.status === 'confirmed' && r.slot_datetime > now)
-           .sort((a, b) => a.slot_datetime.localeCompare(b.slot_datetime))
+        res.filter((r: any) => r.status === 'confirmed' && r.slot_datetime > now)
+           .sort((a: any, b: any) => a.slot_datetime.localeCompare(b.slot_datetime))
            .slice(0, 3)
       );
       // Aktivní balíčky (lessons_remaining > 0)
-      setPurchases(purch.filter(p => p.lessons_remaining > 0).slice(0, 3));
-      setBadges(bdg.filter((b: Badge) => b.earned).slice(0, 5));
-    } catch {}
+      setPurchases(purch.filter((p: any) => p.lessons_remaining > 0).slice(0, 3));
+      // Badges API vrací { badges: [...] }
+      const badgeList = Array.isArray(bdg) ? bdg : (bdg as any)?.badges || [];
+      setBadges(badgeList.filter((b: any) => b.earned).slice(0, 5));
+    } catch (err) {
+      console.error('[Dashboard] Error:', err);
+    }
     setLoading(false);
   }, [studioId]);
 

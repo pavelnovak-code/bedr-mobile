@@ -24,6 +24,11 @@ export async function uploadAvatar(formData: FormData): Promise<{ avatar: string
   return data;
 }
 
+export async function updateAvatar(avatar: string): Promise<{ avatar: string }> {
+  const { data } = await apiClient.put(endpoints.updateAvatar, { avatar });
+  return data;
+}
+
 export async function savePushToken(token: string): Promise<void> {
   await apiClient.put(endpoints.pushToken, { push_token: token });
 }

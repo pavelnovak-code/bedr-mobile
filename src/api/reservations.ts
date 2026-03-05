@@ -26,5 +26,5 @@ export async function moveReservation(id: number, newSlotDatetime: string): Prom
 }
 
 export async function cancelReservation(id: number): Promise<void> {
-  await apiClient.put(endpoints.cancelReservation(id));
+  await apiClient.delete(endpoints.cancelReservation(id));
 }

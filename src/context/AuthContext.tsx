@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User, AuthResponse } from '../api/types';
 import * as authApi from '../api/auth';
+import { getProfile } from '../api/users';
 import { getToken, setToken, clearAuth, parseJwtPayload } from '../utils/storage';
 
 interface AuthState {
@@ -30,6 +31,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoggedIn: false,
   });
 
+  // Stáhne plný profil ze serveru a aktualizuje user state
+  const fetchProfile = useCallback(async () => {
+    try {
+      const profile = await getProfile();
+      setState(s => ({ ...s, user: profile }));
+    } catch (err) {
+      console.warn('[Auth] Nepodařilo se načíst profil:', err);
+    }
+  }, []);
+
   // Při startu apky zkontroluj uložený token
   useEffect(() => {
     (async () => {
@@ -38,9 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (savedToken) {
           const payload = parseJwtPayload(savedToken);
           if (payload && typeof payload.exp === 'number') {
-            // Zkontroluj expiraci
             const now = Math.floor(Date.now() / 1000);
             if (payload.exp > now) {
+              // Token platný → přihlas uživatele s daty z JWT (provizorně)
               setState({
                 user: payload as unknown as User,
                 token: savedToken,
@@ -50,7 +61,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               return;
             }
           }
-          // Token expirovaný
           await clearAuth();
         }
       } catch {
@@ -59,6 +69,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState(s => ({ ...s, isLoading: false }));
     })();
   }, []);
+
+  // Jakmile je uživatel přihlášen, stáhni plný profil
+  useEffect(() => {
+    if (state.isLoggedIn && state.token) {
+      fetchProfile();
+    }
+  }, [state.isLoggedIn, state.token, fetchProfile]);
 
   const setAuthData = useCallback(async (data: AuthResponse) => {
     await setToken(data.token);
