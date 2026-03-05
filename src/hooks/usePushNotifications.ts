@@ -10,8 +10,8 @@ import { savePushToken } from '../api/users';
  */
 export function usePushNotifications() {
   const navigation = useNavigation<any>();
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
   useEffect(() => {
     // 1) Registrace push tokenu
@@ -43,10 +43,10 @@ export function usePushNotifications() {
 
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current.remove();
       }
     };
   }, []);
@@ -59,27 +59,14 @@ export function usePushNotifications() {
 
     switch (data.type) {
       case 'lesson_reminder':
-        // Naviguj na Dashboard (nadcházející lekce)
         navigation.navigate('Přehled');
         break;
-
       case 'new_offer':
-        // Naviguj na Profil → Nabídky tab
-        navigation.navigate('Profil');
-        break;
-
       case 'new_badge':
-        // Naviguj na Profil → Odznaky tab
-        navigation.navigate('Profil');
-        break;
-
       case 'referral_reward':
-        // Naviguj na Profil → Referral tab
         navigation.navigate('Profil');
         break;
-
       default:
-        // Fallback na Dashboard
         navigation.navigate('Přehled');
         break;
     }
