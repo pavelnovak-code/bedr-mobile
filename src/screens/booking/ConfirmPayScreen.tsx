@@ -8,19 +8,19 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { BookingStackParamList } from '../../navigation/BookingStack';
 import { useStudio } from '../../context/StudioContext';
-import { bookReservation } from '../../api/reservations';
+import { createPurchase } from '../../api/purchases';
 import { validatePromoCode } from '../../api/crm';
 import { formatDT } from '../../utils/dateFormat';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
 import Card from '../../components/common/Card';
-import { colors, fonts, spacing, radius } from '../../config/theme';
+import { colors, fonts, spacing } from '../../config/theme';
 
 type Props = NativeStackScreenProps<BookingStackParamList, 'ConfirmPay'>;
 
 export default function ConfirmPayScreen({ navigation, route }: Props) {
-  const { purchaseId, slotDatetime } = route.params;
+  const { packageId, packageName, lessonCount, lessonTypeCode, price, slotDatetime } = route.params;
   const { studioId } = useStudio();
 
   const [promoCode, setPromoCode] = useState('');
@@ -42,7 +42,7 @@ export default function ConfirmPayScreen({ navigation, route }: Props) {
         setPromoValid(false);
       }
     } catch (e: any) {
-      setPromoResult('Nepodařilo se ověřit kód');
+      setPromoResult(e.response?.data?.error || 'Nepodařilo se ověřit kód');
       setPromoValid(false);
     }
   };
@@ -52,14 +52,16 @@ export default function ConfirmPayScreen({ navigation, route }: Props) {
     setLoading(true);
     setError('');
     try {
-      await bookReservation({
-        purchase_id: purchaseId,
-        slot_datetime: slotDatetime,
+      await createPurchase({
+        package_id: packageId,
         studio_id: studioId,
+        start_datetime: slotDatetime,
+        payment_method: 'cash',
+        promo_code: promoValid ? promoCode.trim() : undefined,
       });
       setSuccess(true);
     } catch (e: any) {
-      setError(e.response?.data?.error || e.message || 'Rezervace se nezdařila');
+      setError(e.response?.data?.error || e.message || 'Nákup se nezdařil');
     } finally {
       setLoading(false);
     }
@@ -69,8 +71,12 @@ export default function ConfirmPayScreen({ navigation, route }: Props) {
     return (
       <View style={styles.successContainer}>
         <Text style={styles.successIcon}>✅</Text>
-        <Text style={styles.successTitle}>Rezervace potvrzena!</Text>
+        <Text style={styles.successTitle}>Nákup dokončen!</Text>
+        <Text style={styles.successPkg}>{packageName}</Text>
         <Text style={styles.successText}>{formatDT(slotDatetime)}</Text>
+        <Text style={styles.successNote}>
+          {lessonCount > 1 ? `Zarezervováno ${lessonCount} lekcí (týdenní cyklus)` : 'Lekce zarezervována'}
+        </Text>
         <Button
           title="Zpět na přehled"
           onPress={() => navigation.getParent()?.goBack()}
@@ -89,8 +95,24 @@ export default function ConfirmPayScreen({ navigation, route }: Props) {
       <Alert message={error} visible={!!error} onDismiss={() => setError('')} />
 
       <Card style={styles.summaryCard}>
-        <Text style={styles.summaryLabel}>Vybraný termín:</Text>
-        <Text style={styles.summaryValue}>{formatDT(slotDatetime)}</Text>
+        <Text style={styles.summaryLabel}>Balíček</Text>
+        <Text style={styles.summaryValue}>{packageName}</Text>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Typ lekce</Text>
+          <Text style={styles.summaryDetail}>{lessonTypeCode === 'B' ? 'EMS 60 min' : 'EMS 30 min'}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Počet lekcí</Text>
+          <Text style={styles.summaryDetail}>{lessonCount}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>První lekce</Text>
+          <Text style={styles.summaryDetail}>{formatDT(slotDatetime)}</Text>
+        </View>
+        <View style={[styles.summaryRow, styles.priceRow]}>
+          <Text style={styles.priceLabel}>Cena</Text>
+          <Text style={styles.priceValue}>{price} Kč</Text>
+        </View>
       </Card>
 
       {/* Promo kód */}
@@ -102,6 +124,7 @@ export default function ConfirmPayScreen({ navigation, route }: Props) {
               placeholder="Zadejte kód"
               value={promoCode}
               onChangeText={setPromoCode}
+              autoCapitalize="characters"
             />
           </View>
           <Button
@@ -118,13 +141,17 @@ export default function ConfirmPayScreen({ navigation, route }: Props) {
         )}
       </Card>
 
+      <Text style={styles.paymentNote}>
+        Platba probíhá na místě ve studiu (kartou nebo hotově).
+      </Text>
+
       <Button
-        title="Potvrdit rezervaci"
+        title={`Objednat za ${price} Kč`}
         onPress={handleConfirm}
         loading={loading}
         fullWidth
         size="lg"
-        style={{ marginTop: spacing.xl }}
+        style={{ marginTop: spacing.lg }}
       />
     </ScrollView>
   );
@@ -136,8 +163,13 @@ const styles = StyleSheet.create({
   heading: { fontFamily: fonts.heading, fontSize: 18, color: colors.text, marginBottom: spacing.lg },
 
   summaryCard: { marginBottom: spacing.lg },
-  summaryLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, marginBottom: spacing.xs },
-  summaryValue: { fontFamily: fonts.semiBold, fontSize: 17, color: colors.primary },
+  summaryLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
+  summaryValue: { fontFamily: fonts.semiBold, fontSize: 17, color: colors.primary, marginBottom: spacing.md },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs },
+  summaryDetail: { fontFamily: fonts.medium, fontSize: 14, color: colors.text },
+  priceRow: { marginTop: spacing.sm, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  priceLabel: { fontFamily: fonts.semiBold, fontSize: 16, color: colors.text },
+  priceValue: { fontFamily: fonts.bold, fontSize: 20, color: colors.primary },
 
   promoCard: { marginBottom: spacing.md },
   promoTitle: { fontFamily: fonts.medium, fontSize: 14, color: colors.text, marginBottom: spacing.sm },
@@ -147,6 +179,8 @@ const styles = StyleSheet.create({
   promoOk: { color: colors.success },
   promoErr: { color: colors.danger },
 
+  paymentNote: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, textAlign: 'center' },
+
   // Success
   successContainer: {
     flex: 1, backgroundColor: colors.bg, justifyContent: 'center',
@@ -154,5 +188,7 @@ const styles = StyleSheet.create({
   },
   successIcon: { fontSize: 64, marginBottom: spacing.lg },
   successTitle: { fontFamily: fonts.headingBold, fontSize: 24, color: colors.text, marginBottom: spacing.sm },
-  successText: { fontFamily: fonts.regular, fontSize: 16, color: colors.primary },
+  successPkg: { fontFamily: fonts.semiBold, fontSize: 16, color: colors.primary, marginBottom: spacing.xs },
+  successText: { fontFamily: fonts.regular, fontSize: 16, color: colors.text },
+  successNote: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, marginTop: spacing.sm },
 });

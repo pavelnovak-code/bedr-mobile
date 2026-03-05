@@ -18,9 +18,9 @@ export async function bookReservation(payload: {
   return data;
 }
 
-export async function moveReservation(id: number, newSlotDatetime: string): Promise<Reservation> {
+export async function moveReservation(id: number, newDatetime: string): Promise<{ ok: boolean }> {
   const { data } = await apiClient.put(endpoints.moveReservation(id), {
-    slot_datetime: newSlotDatetime,
+    new_datetime: newDatetime,
   });
   return data;
 }

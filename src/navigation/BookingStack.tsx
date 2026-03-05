@@ -7,8 +7,21 @@ import { colors, fonts } from '../config/theme';
 
 export type BookingStackParamList = {
   PackageSelect: undefined;
-  CalendarSlots: { purchaseId: number; lessonTypeId: number; ltCode: string };
-  ConfirmPay: { purchaseId: number; slotDatetime: string };
+  CalendarSlots: {
+    packageId: number;
+    packageName: string;
+    lessonCount: number;
+    lessonTypeCode: string;
+    price: number;
+  };
+  ConfirmPay: {
+    packageId: number;
+    packageName: string;
+    lessonCount: number;
+    lessonTypeCode: string;
+    price: number;
+    slotDatetime: string;
+  };
 };
 
 const Stack = createNativeStackNavigator<BookingStackParamList>();

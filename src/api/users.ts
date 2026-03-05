@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { endpoints } from '../config/api';
-import { User, Badge, Offer, ReferralStats } from './types';
+import { User, Badge, Offer, ReferralInfo, ReferralStats } from './types';
 
 export async function getProfile(): Promise<User> {
   const { data } = await apiClient.get(endpoints.profile);
@@ -38,8 +38,13 @@ export async function getOffers(): Promise<Offer[]> {
   return data;
 }
 
-export async function getReferral(): Promise<ReferralStats> {
+export async function getReferralInfo(): Promise<ReferralInfo> {
   const { data } = await apiClient.get(endpoints.referral);
+  return data;
+}
+
+export async function getReferralStats(): Promise<ReferralStats> {
+  const { data } = await apiClient.get(endpoints.referralStats);
   return data;
 }
 

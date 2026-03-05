@@ -15,13 +15,12 @@ import { formatMonthYear, formatShortDate } from '../../utils/dateFormat';
 import Spinner from '../../components/common/Spinner';
 import Card from '../../components/common/Card';
 import { colors, fonts, spacing, radius } from '../../config/theme';
-import { format, addDays, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, isSameMonth, isToday, isBefore } from 'date-fns';
-import { cs } from 'date-fns/locale';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, isToday, isBefore } from 'date-fns';
 
 type Props = NativeStackScreenProps<BookingStackParamList, 'CalendarSlots'>;
 
 export default function CalendarSlotsScreen({ navigation, route }: Props) {
-  const { purchaseId, lessonTypeId, ltCode } = route.params;
+  const { packageId, packageName, lessonCount, lessonTypeCode, price } = route.params;
   const { studioId } = useStudio();
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -40,16 +39,26 @@ export default function CalendarSlotsScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (!selectedDate || !studioId) return;
     setLoadingSlots(true);
-    getSlots(studioId, selectedDate, lessonTypeId)
-      .then(data => setSlots(data.filter(s => !s.is_closed && s.reservations < s.max_capacity)))
+    getSlots(studioId, selectedDate)
+      .then(data => {
+        const available = Array.isArray(data) ? data : [];
+        setSlots(available.filter(s => !s.is_closed && s.reservations < s.max_capacity));
+      })
       .catch(() => setSlots([]))
       .finally(() => setLoadingSlots(false));
-  }, [selectedDate, studioId, lessonTypeId]);
+  }, [selectedDate, studioId]);
 
   const selectSlot = (slot: Slot) => {
     if (!selectedDate) return;
     const slotDatetime = `${selectedDate}T${slot.time}:00`;
-    navigation.navigate('ConfirmPay', { purchaseId, slotDatetime });
+    navigation.navigate('ConfirmPay', {
+      packageId,
+      packageName,
+      lessonCount,
+      lessonTypeCode,
+      price,
+      slotDatetime,
+    });
   };
 
   const dayNames = ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'];
@@ -63,6 +72,7 @@ export default function CalendarSlotsScreen({ navigation, route }: Props) {
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
       <Text style={styles.heading}>Krok 2: Vyberte termín</Text>
+      <Text style={styles.pkgInfo}>{packageName} • {lessonTypeCode === 'B' ? '60 min' : '30 min'}</Text>
 
       {/* Měsíc navigace */}
       <View style={styles.monthNav}>
@@ -155,7 +165,8 @@ export default function CalendarSlotsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
   container: { padding: spacing.lg },
-  heading: { fontFamily: fonts.heading, fontSize: 18, color: colors.text, marginBottom: spacing.lg },
+  heading: { fontFamily: fonts.heading, fontSize: 18, color: colors.text, marginBottom: spacing.xs },
+  pkgInfo: { fontFamily: fonts.regular, fontSize: 14, color: colors.primary, marginBottom: spacing.lg },
 
   // Month nav
   monthNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },

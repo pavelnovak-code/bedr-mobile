@@ -12,8 +12,15 @@ export async function getMyPurchases(studioId: number): Promise<Purchase[]> {
 export async function createPurchase(payload: {
   package_id: number;
   studio_id: number;
+  start_datetime?: string;
+  payment_method?: string;
   promo_code?: string;
-}): Promise<Purchase> {
-  const { data } = await apiClient.post(endpoints.createPurchase, payload);
+}): Promise<any> {
+  const body = {
+    ...payload,
+    payment_method: payload.payment_method || 'cash',
+    start_datetime: payload.start_datetime,
+  };
+  const { data } = await apiClient.post(endpoints.createPurchase, body);
   return data;
 }

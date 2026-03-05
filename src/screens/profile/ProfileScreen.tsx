@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  TextInput,
   Switch,
   Share,
-  Alert as RNAlert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,14 +16,13 @@ import { useStudio } from '../../context/StudioContext';
 import * as usersApi from '../../api/users';
 import { getMyPurchases } from '../../api/purchases';
 import { getMyReservations } from '../../api/reservations';
-import { User, Purchase, Reservation, Badge, Offer, ReferralStats } from '../../api/types';
+import { Purchase, Reservation, Badge, Offer, ReferralInfo, ReferralStats } from '../../api/types';
 import Avatar from '../../components/common/Avatar';
 import AvatarPicker from '../../components/common/AvatarPicker';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import Alert from '../../components/common/Alert';
-import Spinner from '../../components/common/Spinner';
 import { colors, fonts, spacing, radius } from '../../config/theme';
 import { formatDT } from '../../utils/dateFormat';
 
@@ -45,7 +42,6 @@ export default function ProfileScreen() {
   const { user, logout, refreshUser } = useAuth();
   const { studioId } = useStudio();
   const [activeTab, setActiveTab] = useState<TabKey>('info');
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // Profile info
@@ -62,7 +58,8 @@ export default function ProfileScreen() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
-  const [referral, setReferral] = useState<ReferralStats | null>(null);
+  const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null);
+  const [referralStats, setReferralStats] = useState<ReferralStats | null>(null);
   const [consent, setConsent] = useState(!!user?.gdpr_consent);
 
   const loadTabData = useCallback(async () => {
@@ -76,12 +73,18 @@ export default function ProfileScreen() {
         setReservations(Array.isArray(raw) ? raw : (raw as any)?.reservations || []);
       } else if (activeTab === 'badges') {
         const raw = await usersApi.getBadges();
-        setBadges(Array.isArray(raw) ? raw : (raw as any)?.badges || []);
+        const list = Array.isArray(raw) ? raw : (raw as any)?.badges || [];
+        setBadges(list);
       } else if (activeTab === 'offers') {
         const raw = await usersApi.getOffers();
-        setOffers(Array.isArray(raw) ? raw : (raw as any)?.offers || []);
+        setOffers(Array.isArray(raw) ? raw : []);
       } else if (activeTab === 'referral') {
-        setReferral(await usersApi.getReferral());
+        const [info, stats] = await Promise.all([
+          usersApi.getReferralInfo().catch(() => null),
+          usersApi.getReferralStats().catch(() => null),
+        ]);
+        setReferralInfo(info);
+        setReferralStats(stats);
       }
     } catch (err) {
       console.warn('[Profile] Tab data error:', activeTab, err);
@@ -118,9 +121,9 @@ export default function ProfileScreen() {
   };
 
   const handleShare = async () => {
-    if (!referral?.code) return;
+    if (!referralInfo?.referral_code) return;
     await Share.share({
-      message: `Přidej se ke mně v BEDR! Použij můj referral kód: ${referral.code}`,
+      message: `Přidej se ke mně v BEDR! Použij můj referral kód: ${referralInfo.referral_code}`,
     });
   };
 
@@ -146,15 +149,29 @@ export default function ProfileScreen() {
       case 'purchases':
         return purchases.length === 0
           ? <Card><Text style={s.emptyText}>Žádné nákupy</Text></Card>
-          : purchases.map(p => (
-            <Card key={p.id} style={s.itemCard}>
-              <Text style={s.itemTitle}>{p.package_name}</Text>
-              <Text style={s.itemMeta}>
-                {p.lessons_remaining}/{p.lessons_total} lekcí • {p.payment_status === 'paid' ? 'Zaplaceno' : 'Nezaplaceno'}
-              </Text>
-              <Text style={s.itemDate}>Platnost: {new Date(p.valid_until).toLocaleDateString('cs-CZ')}</Text>
-            </Card>
-          ));
+          : purchases.map(p => {
+            const total = p.lessons_total || 0;
+            const remaining = p.lessons_remaining || 0;
+            let validityText = '';
+            if (p.validity_weeks && p.validity_weeks > 0) {
+              if (p.first_lesson_at) {
+                const exp = new Date(new Date(p.first_lesson_at).getTime() + p.validity_weeks * 7 * 86400000);
+                validityText = `Platnost do: ${exp.toLocaleDateString('cs-CZ')}`;
+              } else {
+                validityText = `Platnost: ${p.validity_weeks} týdnů od první lekce`;
+              }
+            }
+            const paid = p.payment_status === 'paid';
+            return (
+              <Card key={p.id} style={s.itemCard}>
+                <Text style={s.itemTitle}>{p.package_name}</Text>
+                <Text style={s.itemMeta}>
+                  {remaining}/{total} lekcí • {paid ? 'Zaplaceno' : 'Nezaplaceno'}
+                </Text>
+                {validityText ? <Text style={s.itemDate}>{validityText}</Text> : null}
+              </Card>
+            );
+          });
 
       case 'lessons':
         return reservations.length === 0
@@ -172,41 +189,67 @@ export default function ProfileScreen() {
       case 'badges':
         return badges.length === 0
           ? <Card><Text style={s.emptyText}>Zatím žádné odznaky</Text></Card>
-          : badges.map(b => (
-            <Card key={b.id} style={s.badgeCard}>
-              <Text style={s.badgeIcon}>{b.icon}</Text>
-              <View style={s.badgeInfo}>
-                <Text style={s.badgeName}>{b.name}</Text>
-                <Text style={s.badgeDesc}>{b.description}</Text>
-                <View style={s.progressBg}>
-                  <View style={[s.progressFill, { width: `${Math.min(100, Math.round((b.progress / b.target) * 100))}%` }]} />
+          : badges.map(b => {
+            const pct = b.progress_total > 0
+              ? Math.min(100, Math.round((b.progress_current / b.progress_total) * 100))
+              : 0;
+            return (
+              <Card key={b.id} style={s.badgeCard}>
+                <Text style={s.badgeIcon}>{b.emoji}</Text>
+                <View style={s.badgeInfo}>
+                  <Text style={[s.badgeName, b.earned && { color: colors.success }]}>
+                    {b.name} {b.earned ? '✓' : ''}
+                  </Text>
+                  <Text style={s.badgeDesc}>{b.description}</Text>
+                  <View style={s.progressBg}>
+                    <View style={[s.progressFill, { width: `${pct}%`, backgroundColor: b.earned ? colors.success : colors.primary }]} />
+                  </View>
+                  <Text style={s.badgeProgress}>{b.progress_current} / {b.progress_total}</Text>
                 </View>
-                <Text style={s.badgeProgress}>{b.progress} / {b.target}</Text>
-              </View>
-            </Card>
-          ));
+              </Card>
+            );
+          });
 
       case 'offers':
         return offers.length === 0
           ? <Card><Text style={s.emptyText}>Žádné nabídky</Text></Card>
-          : offers.map(o => (
-            <Card key={o.id} style={s.itemCard}>
-              <Text style={s.itemTitle}>{o.title}</Text>
-              <Text style={s.itemMeta}>{o.description}</Text>
-              <Text style={s.offerDiscount}>-{o.discount_percent}%</Text>
-            </Card>
-          ));
+          : offers.map(o => {
+            let discountText = '';
+            if (o.discount_type === 'percent') discountText = `-${o.discount_value}%`;
+            else if (o.discount_type === 'fixed') discountText = `-${o.discount_value} Kč`;
+            else if (o.discount_type === 'free_package') discountText = 'Zdarma';
+            return (
+              <Card key={o.id} style={s.itemCard}>
+                <Text style={s.itemTitle}>{o.title}</Text>
+                <Text style={s.itemMeta}>{o.perex}</Text>
+                {o.promo_code && (
+                  <Text style={s.promoCode}>Kód: {o.promo_code}</Text>
+                )}
+                {discountText ? <Text style={s.offerDiscount}>{discountText}</Text> : null}
+                {o.redeemed_at && <Text style={s.redeemedText}>Uplatněno</Text>}
+              </Card>
+            );
+          });
 
       case 'referral':
         return (
           <Card>
-            <Text style={s.refCode}>{referral?.code || '...'}</Text>
+            <Text style={s.refCode}>{referralInfo?.referral_code || '...'}</Text>
             <Text style={s.refLabel}>Váš referral kód</Text>
-            {referral && (
+            {referralStats && (
               <View style={s.refStats}>
-                <View style={s.refStat}><Text style={s.refNum}>{referral.total_referred}</Text><Text style={s.refStatLabel}>Pozváno</Text></View>
-                <View style={s.refStat}><Text style={s.refNum}>{referral.successful}</Text><Text style={s.refStatLabel}>Úspěšných</Text></View>
-                <View style={s.refStat}><Text style={s.refNum}>{referral.rewards_earned}</Text><Text style={s.refStatLabel}>Odměn</Text></View>
+                <View style={s.refStat}>
+                  <Text style={s.refNum}>{referralStats.invites_sent}</Text>
+                  <Text style={s.refStatLabel}>Pozváno</Text>
+                </View>
+                <View style={s.refStat}>
+                  <Text style={s.refNum}>{referralStats.completed}</Text>
+                  <Text style={s.refStatLabel}>Úspěšných</Text>
+                </View>
+                <View style={s.refStat}>
+                  <Text style={s.refNum}>{referralStats.rewards}</Text>
+                  <Text style={s.refStatLabel}>Odměn</Text>
+                </View>
               </View>
             )}
             <Button title="Sdílet kód" onPress={handleShare} fullWidth style={{ marginTop: spacing.lg }} />
@@ -326,6 +369,8 @@ const s = StyleSheet.create({
 
   // Offers
   offerDiscount: { fontFamily: fonts.bold, fontSize: 18, color: colors.success, marginTop: spacing.sm },
+  promoCode: { fontFamily: fonts.medium, fontSize: 13, color: colors.primary, marginTop: spacing.xs },
+  redeemedText: { fontFamily: fonts.medium, fontSize: 12, color: colors.success, marginTop: spacing.xs },
 
   // Referral
   refCode: { fontFamily: fonts.headingBold, fontSize: 28, color: colors.primary, textAlign: 'center' },

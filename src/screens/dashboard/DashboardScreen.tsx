@@ -153,29 +153,37 @@ export default function DashboardScreen() {
             <Text style={styles.emptyText}>Žádné aktivní balíčky</Text>
           </Card>
         ) : (
-          purchases.map(p => (
-            <Card key={p.id} style={styles.pkgCard}>
-              <Text style={styles.pkgName}>{p.package_name}</Text>
-              <View style={styles.pkgRow}>
-                <Text style={styles.pkgLabel}>Zbývá lekcí:</Text>
-                <Text style={styles.pkgValue}>
-                  {p.lessons_remaining} / {p.lessons_total}
-                </Text>
-              </View>
-              {/* Progress bar */}
-              <View style={styles.progressBg}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    { width: `${Math.round((p.lessons_remaining / p.lessons_total) * 100)}%` },
-                  ]}
-                />
-              </View>
-              <Text style={styles.pkgValid}>
-                Platnost do: {new Date(p.valid_until).toLocaleDateString('cs-CZ')}
-              </Text>
-            </Card>
-          ))
+          purchases.map(p => {
+            const total = p.lessons_total || 0;
+            const remaining = p.lessons_remaining || 0;
+            const pct = total > 0 ? Math.round((remaining / total) * 100) : 0;
+            // Platnost: first_lesson_at + validity_weeks
+            let validityText = '';
+            if (p.validity_weeks && p.validity_weeks > 0) {
+              if (p.first_lesson_at) {
+                const exp = new Date(new Date(p.first_lesson_at).getTime() + p.validity_weeks * 7 * 86400000);
+                validityText = `Platnost do: ${exp.toLocaleDateString('cs-CZ')}`;
+              } else {
+                validityText = `Platnost: ${p.validity_weeks} týdnů od první lekce`;
+              }
+            }
+            return (
+              <Card key={p.id} style={styles.pkgCard}>
+                <Text style={styles.pkgName}>{p.package_name}</Text>
+                <View style={styles.pkgRow}>
+                  <Text style={styles.pkgLabel}>Zbývá lekcí:</Text>
+                  <Text style={styles.pkgValue}>
+                    {remaining} / {total}
+                  </Text>
+                </View>
+                {/* Progress bar */}
+                <View style={styles.progressBg}>
+                  <View style={[styles.progressFill, { width: `${pct}%` }]} />
+                </View>
+                {validityText ? <Text style={styles.pkgValid}>{validityText}</Text> : null}
+              </Card>
+            );
+          })
         )}
 
         {/* Odznaky */}
@@ -186,7 +194,7 @@ export default function DashboardScreen() {
               <View style={styles.badgeRow}>
                 {badges.map(b => (
                   <View key={b.id} style={styles.badgeItem}>
-                    <Text style={styles.badgeIcon}>{b.icon}</Text>
+                    <Text style={styles.badgeIcon}>{b.emoji}</Text>
                     <Text style={styles.badgeName}>{b.name}</Text>
                   </View>
                 ))}
