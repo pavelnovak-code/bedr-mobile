@@ -4,7 +4,7 @@ import { colors, radius, spacing, shadows } from '../../config/theme';
 
 interface CardProps {
   children: ReactNode;
-  style?: ViewStyle;
+  style?: ViewStyle | (ViewStyle | false | undefined)[];
   padded?: boolean;
 }
 

@@ -13,6 +13,8 @@ export type BookingStackParamList = {
     lessonCount: number;
     lessonTypeCode: string;
     price: number;
+    // Pro rezervaci z existujícího balíčku:
+    purchaseId?: number;
   };
   ConfirmPay: {
     packageId: number;

@@ -48,11 +48,22 @@ export async function getReferralStats(): Promise<ReferralStats> {
   return data;
 }
 
+export async function sendReferralInvite(email: string): Promise<{ ok: boolean; referral_code: string }> {
+  const { data } = await apiClient.post(endpoints.referralInvite, {
+    method: 'email',
+    value: email,
+  });
+  return data;
+}
+
 export async function getBadges(): Promise<Badge[]> {
   const { data } = await apiClient.get(endpoints.badges);
   return data;
 }
 
-export async function updateConsent(consent: boolean): Promise<void> {
-  await apiClient.put(endpoints.gdprConsent, { gdpr_consent: consent });
+export async function updateConsent(payload: {
+  consent_marketing?: boolean;
+  consent_system?: boolean;
+}): Promise<void> {
+  await apiClient.put(endpoints.gdprConsent, payload);
 }

@@ -8,7 +8,12 @@ export interface User {
   telefon: string | null;
   avatar: string | null;
   role: 'zakaznik' | 'trener' | 'seftrener' | 'admin';
-  gdpr_consent: number;
+  gdpr_souhlas: number;
+  gdpr_datum: string | null;
+  consent_marketing: number;
+  consent_system: number;
+  consent_marketing_at: string | null;
+  consent_system_at: string | null;
   referral_code: string | null;
   referred_by: string | null;
   created_at: string;
@@ -55,10 +60,13 @@ export interface Purchase {
   created_at: string;
   first_lesson_at: string | null;
   validity_weeks: number;
+  validity_end: string | null;
   studio_id: number;
   studio_name: string;
   lesson_type_code: 'A' | 'B';
   is_active: number;
+  referred_friend_name: string | null;
+  pkg_status: 'active' | 'exhausted' | 'expired';
 }
 
 export interface Reservation {
@@ -81,10 +89,11 @@ export interface Reservation {
 
 export interface Slot {
   time: string;
-  date: string;
-  reservations: number;
-  max_capacity: number;
-  is_closed: boolean;
+  datetime: string;
+  available: boolean;
+  available_spots: number;
+  is_past?: boolean;
+  is_closed?: boolean;
   trainer?: { id: number; name: string; color: string };
 }
 

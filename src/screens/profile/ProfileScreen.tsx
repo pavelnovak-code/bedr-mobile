@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Switch,
   Share,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
@@ -34,7 +35,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'lessons', label: 'Lekce' },
   { key: 'badges', label: 'Odznaky' },
   { key: 'offers', label: 'Nabídky' },
-  { key: 'referral', label: 'Referral' },
+  { key: 'referral', label: 'Pozvi kamaráda' },
   { key: 'consent', label: 'GDPR' },
 ];
 
@@ -60,7 +61,27 @@ export default function ProfileScreen() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null);
   const [referralStats, setReferralStats] = useState<ReferralStats | null>(null);
-  const [consent, setConsent] = useState(!!user?.gdpr_consent);
+  const [consentMarketing, setConsentMarketing] = useState(!!user?.consent_marketing);
+  const [consentSystem, setConsentSystem] = useState(!!user?.consent_system);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteSending, setInviteSending] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState('');
+  const [inviteMsgType, setInviteMsgType] = useState<'success' | 'error'>('success');
+
+  // Sync consent stavu s user objektem (načte se async z profilu)
+  useEffect(() => {
+    if (user) {
+      setConsentMarketing(!!user.consent_marketing);
+      setConsentSystem(!!user.consent_system);
+    }
+  }, [user]);
+
+  const handleCopyPromoCode = async (code: string) => {
+    await Clipboard.setStringAsync(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
 
   const loadTabData = useCallback(async () => {
     if (!studioId) return;
@@ -127,9 +148,33 @@ export default function ProfileScreen() {
     });
   };
 
-  const handleConsentChange = async (val: boolean) => {
-    setConsent(val);
-    try { await usersApi.updateConsent(val); } catch {}
+  const handleConsentMarketingChange = async (val: boolean) => {
+    setConsentMarketing(val);
+    try { await usersApi.updateConsent({ consent_marketing: val }); } catch {}
+  };
+
+  const handleConsentSystemChange = async (val: boolean) => {
+    setConsentSystem(val);
+    try { await usersApi.updateConsent({ consent_system: val }); } catch {}
+  };
+
+  const handleSendInvite = async () => {
+    const email = inviteEmail.trim();
+    if (!email) return;
+    setInviteSending(true);
+    setInviteMsg('');
+    try {
+      await usersApi.sendReferralInvite(email);
+      setInviteMsg('Pozvánka odeslána!');
+      setInviteMsgType('success');
+      setInviteEmail('');
+    } catch (e: any) {
+      const errMsg = e.response?.data?.error || e.message || 'Nepodařilo se odeslat';
+      setInviteMsg(errMsg);
+      setInviteMsgType('error');
+    } finally {
+      setInviteSending(false);
+    }
   };
 
   const renderTab = () => {
@@ -150,23 +195,36 @@ export default function ProfileScreen() {
         return purchases.length === 0
           ? <Card><Text style={s.emptyText}>Žádné nákupy</Text></Card>
           : purchases.map(p => {
-            const total = p.lessons_total || 0;
             const remaining = p.lessons_remaining || 0;
+            const isGift = p.payment_method === 'bonus';
+            const statusLabel = p.pkg_status === 'expired' ? 'Prošlá platnost'
+              : p.pkg_status === 'exhausted' ? 'Vyčerpané' : 'Aktivní';
+            const statusColor = p.pkg_status === 'expired' ? colors.danger
+              : p.pkg_status === 'exhausted' ? colors.muted : colors.success;
             let validityText = '';
-            if (p.validity_weeks && p.validity_weeks > 0) {
-              if (p.first_lesson_at) {
-                const exp = new Date(new Date(p.first_lesson_at).getTime() + p.validity_weeks * 7 * 86400000);
-                validityText = `Platnost do: ${exp.toLocaleDateString('cs-CZ')}`;
-              } else {
-                validityText = `Platnost: ${p.validity_weeks} týdnů od první lekce`;
-              }
+            if (p.validity_end) {
+              validityText = `Platnost do: ${new Date(p.validity_end).toLocaleDateString('cs-CZ')}`;
+            } else if (p.validity_weeks && p.validity_weeks > 0) {
+              validityText = `Platnost: ${p.validity_weeks} týdnů od první lekce`;
             }
             const paid = p.payment_status === 'paid';
             return (
-              <Card key={p.id} style={s.itemCard}>
-                <Text style={s.itemTitle}>{p.package_name}</Text>
+              <Card key={p.id} style={[s.itemCard, p.pkg_status !== 'active' && s.itemCardInactive]}>
+                <View style={s.purchaseHeader}>
+                  <Text style={s.itemTitle}>{p.package_name}</Text>
+                  <View style={[s.statusBadge, { backgroundColor: statusColor + '20' }]}>
+                    <Text style={[s.statusBadgeText, { color: statusColor }]}>{statusLabel}</Text>
+                  </View>
+                </View>
+                {isGift && (
+                  <View style={s.giftBadge}>
+                    <Text style={s.giftBadgeText}>
+                      🎁 Dárek{p.referred_friend_name ? ` za doporučení ${p.referred_friend_name}` : ''}
+                    </Text>
+                  </View>
+                )}
                 <Text style={s.itemMeta}>
-                  {remaining}/{total} lekcí • {paid ? 'Zaplaceno' : 'Nezaplaceno'}
+                  Zbývá lekcí: {remaining} • {isGift ? '🎁 Dárek' : paid ? 'Zaplaceno' : 'Nezaplaceno'}
                 </Text>
                 {validityText ? <Text style={s.itemDate}>{validityText}</Text> : null}
               </Card>
@@ -223,7 +281,16 @@ export default function ProfileScreen() {
                 <Text style={s.itemTitle}>{o.title}</Text>
                 <Text style={s.itemMeta}>{o.perex}</Text>
                 {o.promo_code && (
-                  <Text style={s.promoCode}>Kód: {o.promo_code}</Text>
+                  <TouchableOpacity
+                    style={s.promoCodeRow}
+                    onPress={() => handleCopyPromoCode(o.promo_code!)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={s.promoCode}>Kód: {o.promo_code}</Text>
+                    <Text style={s.copyBtn}>
+                      {copiedCode === o.promo_code ? '✓ Zkopírováno' : '📋 Kopírovat'}
+                    </Text>
+                  </TouchableOpacity>
                 )}
                 {discountText ? <Text style={s.offerDiscount}>{discountText}</Text> : null}
                 {o.redeemed_at && <Text style={s.redeemedText}>Uplatněno</Text>}
@@ -233,41 +300,94 @@ export default function ProfileScreen() {
 
       case 'referral':
         return (
-          <Card>
-            <Text style={s.refCode}>{referralInfo?.referral_code || '...'}</Text>
-            <Text style={s.refLabel}>Váš referral kód</Text>
-            {referralStats && (
-              <View style={s.refStats}>
-                <View style={s.refStat}>
-                  <Text style={s.refNum}>{referralStats.invites_sent}</Text>
-                  <Text style={s.refStatLabel}>Pozváno</Text>
+          <>
+            {/* Kód */}
+            <Card>
+              <Text style={s.refHeading}>Váš kód pro pozvání</Text>
+              <TouchableOpacity
+                onPress={() => referralInfo?.referral_code && handleCopyPromoCode(referralInfo.referral_code)}
+                activeOpacity={0.7}
+                style={s.refCodeBox}
+              >
+                <Text style={s.refCode}>{referralInfo?.referral_code || '...'}</Text>
+                <Text style={s.refCopyHint}>
+                  {copiedCode === referralInfo?.referral_code ? '✓ Zkopírováno' : '📋 Kopírovat'}
+                </Text>
+              </TouchableOpacity>
+              {referralStats && (
+                <View style={s.refStats}>
+                  <View style={s.refStat}>
+                    <Text style={s.refNum}>{referralStats.invites_sent}</Text>
+                    <Text style={s.refStatLabel}>Pozváno</Text>
+                  </View>
+                  <View style={s.refStat}>
+                    <Text style={s.refNum}>{referralStats.completed}</Text>
+                    <Text style={s.refStatLabel}>Úspěšných</Text>
+                  </View>
+                  <View style={s.refStat}>
+                    <Text style={s.refNum}>{referralStats.rewards}</Text>
+                    <Text style={s.refStatLabel}>Odměn</Text>
+                  </View>
                 </View>
-                <View style={s.refStat}>
-                  <Text style={s.refNum}>{referralStats.completed}</Text>
-                  <Text style={s.refStatLabel}>Úspěšných</Text>
-                </View>
-                <View style={s.refStat}>
-                  <Text style={s.refNum}>{referralStats.rewards}</Text>
-                  <Text style={s.refStatLabel}>Odměn</Text>
-                </View>
-              </View>
-            )}
-            <Button title="Sdílet kód" onPress={handleShare} fullWidth style={{ marginTop: spacing.lg }} />
-          </Card>
+              )}
+              <Button title="Sdílet kód" onPress={handleShare} fullWidth style={{ marginTop: spacing.lg }} />
+            </Card>
+
+            {/* Pozvat emailem */}
+            <Card style={{ marginTop: spacing.md }}>
+              <Text style={s.refHeading}>Pozvat e-mailem</Text>
+              <Input
+                placeholder="E-mail kamaráda"
+                value={inviteEmail}
+                onChangeText={setInviteEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              {inviteMsg ? (
+                <Text style={[s.inviteMsg, inviteMsgType === 'error' ? s.inviteMsgErr : s.inviteMsgOk]}>
+                  {inviteMsg}
+                </Text>
+              ) : null}
+              <Button
+                title="Odeslat pozvánku"
+                onPress={handleSendInvite}
+                loading={inviteSending}
+                fullWidth
+                style={{ marginTop: spacing.sm }}
+              />
+            </Card>
+          </>
         );
 
       case 'consent':
         return (
           <Card>
+            <Text style={s.consentHeading}>Správa souhlasů</Text>
             <View style={s.consentRow}>
-              <Text style={s.consentText}>Souhlasím se zpracováním osobních údajů</Text>
+              <Text style={s.consentText}>Marketingová komunikace</Text>
               <Switch
-                value={consent}
-                onValueChange={handleConsentChange}
+                value={consentMarketing}
+                onValueChange={handleConsentMarketingChange}
                 trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={consent ? colors.primary : '#f4f3f4'}
+                thumbColor={consentMarketing ? colors.primary : '#f4f3f4'}
               />
             </View>
+            <Text style={s.consentDesc}>E-maily o novinkách, akcích a speciálních nabídkách</Text>
+            <View style={[s.consentRow, { marginTop: spacing.lg }]}>
+              <Text style={s.consentText}>Systémová oznámení</Text>
+              <Switch
+                value={consentSystem}
+                onValueChange={handleConsentSystemChange}
+                trackColor={{ false: colors.border, true: colors.primaryLight }}
+                thumbColor={consentSystem ? colors.primary : '#f4f3f4'}
+              />
+            </View>
+            <Text style={s.consentDesc}>Připomínky lekcí, změny v rozvrhu, informace o účtu</Text>
+            {user?.gdpr_souhlas ? (
+              <Text style={s.consentGdpr}>
+                Souhlas se zpracováním osobních údajů udělen{user.gdpr_datum ? ` dne ${new Date(user.gdpr_datum).toLocaleDateString('cs-CZ')}` : ''}
+              </Text>
+            ) : null}
           </Card>
         );
     }
@@ -349,6 +469,23 @@ const s = StyleSheet.create({
   // Common items
   emptyText: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted, textAlign: 'center' },
   itemCard: { marginBottom: spacing.md },
+  itemCardInactive: { opacity: 0.65 },
+  purchaseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+  statusBadge: {
+    paddingVertical: 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+  },
+  statusBadgeText: { fontFamily: fonts.medium, fontSize: 11 },
+  giftBadge: {
+    backgroundColor: '#fef3c7',
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    marginBottom: spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  giftBadgeText: { fontFamily: fonts.medium, fontSize: 12, color: '#92400e' },
   itemTitle: { fontFamily: fonts.semiBold, fontSize: 15, color: colors.text },
   itemMeta: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, marginTop: 2 },
   itemDate: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 4 },
@@ -369,18 +506,37 @@ const s = StyleSheet.create({
 
   // Offers
   offerDiscount: { fontFamily: fonts.bold, fontSize: 18, color: colors.success, marginTop: spacing.sm },
-  promoCode: { fontFamily: fonts.medium, fontSize: 13, color: colors.primary, marginTop: spacing.xs },
+  promoCodeRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: spacing.sm, backgroundColor: colors.primaryLight,
+    paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+  },
+  promoCode: { fontFamily: fonts.semiBold, fontSize: 15, color: colors.primary },
+  copyBtn: { fontFamily: fonts.medium, fontSize: 12, color: colors.primaryDark },
   redeemedText: { fontFamily: fonts.medium, fontSize: 12, color: colors.success, marginTop: spacing.xs },
 
   // Referral
-  refCode: { fontFamily: fonts.headingBold, fontSize: 28, color: colors.primary, textAlign: 'center' },
-  refLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, textAlign: 'center', marginBottom: spacing.lg },
+  refHeading: { fontFamily: fonts.heading, fontSize: 16, color: colors.text, marginBottom: spacing.md },
+  refCodeBox: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.primaryLight, padding: spacing.md, borderRadius: radius.md,
+    marginBottom: spacing.lg,
+  },
+  refCode: { fontFamily: fonts.headingBold, fontSize: 22, color: colors.primary },
+  refCopyHint: { fontFamily: fonts.medium, fontSize: 12, color: colors.primaryDark },
+  inviteMsg: { fontFamily: fonts.medium, fontSize: 13, marginTop: spacing.xs },
+  inviteMsgOk: { color: colors.success },
+  inviteMsgErr: { color: colors.danger },
   refStats: { flexDirection: 'row', justifyContent: 'space-around' },
   refStat: { alignItems: 'center' },
   refNum: { fontFamily: fonts.bold, fontSize: 22, color: colors.text },
   refStatLabel: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
 
   // Consent
+  consentHeading: { fontFamily: fonts.heading, fontSize: 16, color: colors.text, marginBottom: spacing.lg },
   consentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  consentText: { fontFamily: fonts.regular, fontSize: 14, color: colors.text, flex: 1 },
+  consentText: { fontFamily: fonts.medium, fontSize: 14, color: colors.text, flex: 1 },
+  consentDesc: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: spacing.xs },
+  consentGdpr: { fontFamily: fonts.regular, fontSize: 12, color: colors.success, marginTop: spacing.xl, textAlign: 'center' },
 });

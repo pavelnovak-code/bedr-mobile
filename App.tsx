@@ -1,6 +1,7 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './src/context/AuthContext';
 import { StudioProvider } from './src/context/StudioContext';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -9,7 +10,7 @@ import { colors } from './src/config/theme';
 
 export default function App() {
   return (
-    <View style={styles.root}>
+    <GestureHandlerRootView style={styles.root}>
       <StatusBar style="dark" />
       <ErrorBoundary>
         <AuthProvider>
@@ -18,7 +19,7 @@ export default function App() {
           </StudioProvider>
         </AuthProvider>
       </ErrorBoundary>
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
