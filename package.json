@@ -1,7 +1,7 @@
 {
   "name": "bedr-mobile",
   "version": "1.0.0",
-  "main": "App.tsx",
+  "main": "expo/AppEntry",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -9,8 +9,6 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@expo-google-fonts/inter": "^0.2.3",
-    "@expo-google-fonts/poppins": "^0.2.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.0.0",
     "@react-navigation/native": "^7.0.0",
@@ -22,7 +20,6 @@
     "expo-asset": "~12.0.12",
     "expo-constants": "~18.0.13",
     "expo-device": "~8.0.10",
-    "expo-font": "~14.0.11",
     "expo-image-picker": "~17.0.10",
     "expo-notifications": "~0.32.16",
     "expo-secure-store": "~15.0.8",

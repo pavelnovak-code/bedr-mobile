@@ -26,8 +26,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#006085"
       },
-      "package": "cz.bedr.mobile",
-      "googleServicesFile": "./google-services.json"
+      "package": "cz.bedr.mobile"
     },
     "plugins": [
       "expo-secure-store",

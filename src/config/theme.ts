@@ -20,14 +20,28 @@ export const colors = {
   black: '#000000',
 } as const;
 
+// Systémové fonty (Inter je default na iOS 17+, Roboto na Androidu)
+// Fallback přes fontWeight — React Native vybere správnou variantu automaticky
+import { Platform } from 'react-native';
+
+const systemFont = Platform.OS === 'ios' ? 'System' : 'Roboto';
+
 export const fonts = {
-  regular: 'Inter_400Regular',
-  medium:  'Inter_500Medium',
-  semiBold: 'Inter_600SemiBold',
-  bold:    'Inter_700Bold',
-  heading: 'Poppins_600SemiBold',
-  headingBold: 'Poppins_700Bold',
+  regular: systemFont,
+  medium:  systemFont,
+  semiBold: systemFont,
+  bold:    systemFont,
+  heading: systemFont,
+  headingBold: systemFont,
 } as const;
+
+// Font weight mapování (použít spolu s fontFamily)
+export const fontWeights = {
+  regular: '400' as const,
+  medium: '500' as const,
+  semiBold: '600' as const,
+  bold: '700' as const,
+};
 
 export const spacing = {
   xs: 4,
