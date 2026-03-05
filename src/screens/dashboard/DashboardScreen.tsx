@@ -108,7 +108,7 @@ export default function DashboardScreen() {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.greeting}>
-              {greeting ? `Ahoj, ${greeting}! 👋` : 'Ahoj! 👋'}
+              {greeting ? `Dobrý den, ${greeting}! 👋` : 'Dobrý den! 👋'}
             </Text>
             <Text style={styles.sub}>Váš přehled</Text>
           </View>
