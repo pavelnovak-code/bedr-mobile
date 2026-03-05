@@ -17,11 +17,7 @@ const linking = {
       ResetPassword: 'reset-password',
       // Main tabs (po přihlášení)
       Dashboard: 'dashboard',
-      Booking: {
-        screens: {
-          PackageSelect: 'book',
-        },
-      },
+      Booking: 'book',
       Profile: 'profile',
     },
   },

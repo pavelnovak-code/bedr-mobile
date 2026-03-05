@@ -3,10 +3,10 @@
 
 import { Platform } from 'react-native';
 
-// Android emulátor používá 10.0.2.2 pro localhost
-const DEV_URL = Platform.OS === 'android'
-  ? 'http://10.0.2.2:3001'
-  : 'http://localhost:3001';
+// V developmentu: staging API (telefon v Expo Go nemá přístup na localhost)
+// Pro iOS simulátor nebo Android emulátor lze přepnout na localhost:
+// const DEV_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3001' : 'http://localhost:3001';
+const DEV_URL = 'https://staging.bedr.cz';
 
 // Production URL
 const PROD_URL = 'https://app.bedr.cz';
