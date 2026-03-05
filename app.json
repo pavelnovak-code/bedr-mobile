@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "BEDR",
+    "slug": "bedr-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "bedr",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#006085"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "cz.bedr.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "BEDR potřebuje přístup k fotoaparátu pro nahrání profilové fotky.",
+        "NSPhotoLibraryUsageDescription": "BEDR potřebuje přístup k fotkám pro nahrání profilové fotky."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#006085"
+      },
+      "package": "cz.bedr.mobile",
+      "googleServicesFile": "./google-services.json"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-notifications",
+      "expo-image-picker"
+    ]
+  }
+}

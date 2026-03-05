@@ -1,0 +1,255 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Switch,
+  TouchableOpacity,
+} from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AuthStackParamList } from '../../navigation/AuthStack';
+import { useAuth } from '../../context/AuthContext';
+import { getStudios } from '../../api/studios';
+import { Studio } from '../../api/types';
+import Input from '../../components/common/Input';
+import Button from '../../components/common/Button';
+import Alert from '../../components/common/Alert';
+import AvatarPicker from '../../components/common/AvatarPicker';
+import { colors, fonts, spacing, radius } from '../../config/theme';
+
+type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
+
+export default function RegisterScreen({ route }: Props) {
+  const { register } = useAuth();
+
+  const [jmeno, setJmeno] = useState('');
+  const [prijmeni, setPrijmeni] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [telefon, setTelefon] = useState('');
+  const [avatar, setAvatar] = useState('avatar:1');
+  const [studioId, setStudioId] = useState<number | null>(null);
+  const [referralCode, setReferralCode] = useState(route.params?.referralCode || '');
+  const [gdprConsent, setGdprConsent] = useState(false);
+
+  const [studios, setStudios] = useState<Studio[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getStudios();
+        setStudios(data);
+        if (data.length > 0) setStudioId(data[0].id);
+      } catch {}
+    })();
+  }, []);
+
+  const validate = (): string | null => {
+    if (!jmeno.trim()) return 'Vyplňte jméno';
+    if (!prijmeni.trim()) return 'Vyplňte příjmení';
+    if (!email.trim()) return 'Vyplňte email';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Neplatný email';
+    if (password.length < 6) return 'Heslo musí mít alespoň 6 znaků';
+    if (!gdprConsent) return 'Musíte souhlasit se zpracováním osobních údajů';
+    return null;
+  };
+
+  const handleRegister = async () => {
+    const err = validate();
+    if (err) { setError(err); return; }
+
+    setLoading(true);
+    setError('');
+    try {
+      await register({
+        jmeno: jmeno.trim(),
+        prijmeni: prijmeni.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        telefon: telefon.trim() || undefined,
+        avatar,
+        studio_id: studioId || undefined,
+        referral_code: referralCode.trim() || undefined,
+        gdpr_consent: true,
+      });
+    } catch (e: any) {
+      setError(e.response?.data?.error || e.message || 'Registrace se nezdařila');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Alert message={error} visible={!!error} onDismiss={() => setError('')} />
+
+        <View style={styles.card}>
+          <AvatarPicker selected={avatar} onSelect={setAvatar} />
+
+          <Input
+            label="Jméno *"
+            placeholder="Jan"
+            value={jmeno}
+            onChangeText={setJmeno}
+            autoComplete="given-name"
+          />
+          <Input
+            label="Příjmení *"
+            placeholder="Novák"
+            value={prijmeni}
+            onChangeText={setPrijmeni}
+            autoComplete="family-name"
+          />
+          <Input
+            label="Email *"
+            placeholder="jan@email.cz"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoComplete="email"
+          />
+          <Input
+            label="Heslo *"
+            placeholder="Min. 6 znaků"
+            value={password}
+            onChangeText={setPassword}
+            isPassword
+          />
+          <Input
+            label="Telefon"
+            placeholder="+420 xxx xxx xxx"
+            value={telefon}
+            onChangeText={setTelefon}
+            keyboardType="phone-pad"
+            autoComplete="tel"
+          />
+
+          {studios.length > 1 && (
+            <View style={styles.studioWrap}>
+              <Text style={styles.studioLabel}>Studio:</Text>
+              <View style={styles.studioRow}>
+                {studios.map(s => (
+                  <TouchableOpacity
+                    key={s.id}
+                    onPress={() => setStudioId(s.id)}
+                    style={[
+                      styles.studioBtn,
+                      s.id === studioId && styles.studioBtnActive,
+                    ]}
+                  >
+                    <Text style={[
+                      styles.studioBtnText,
+                      s.id === studioId && styles.studioBtnTextActive,
+                    ]}>
+                      {s.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          <Input
+            label="Referral kód (nepovinné)"
+            placeholder="Kód od kamaráda"
+            value={referralCode}
+            onChangeText={setReferralCode}
+          />
+
+          <View style={styles.gdprRow}>
+            <Switch
+              value={gdprConsent}
+              onValueChange={setGdprConsent}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={gdprConsent ? colors.primary : '#f4f3f4'}
+            />
+            <Text style={styles.gdprText}>
+              Souhlasím se zpracováním osobních údajů *
+            </Text>
+          </View>
+
+          <Button
+            title="Zaregistrovat se"
+            onPress={handleRegister}
+            loading={loading}
+            fullWidth
+            size="lg"
+            style={{ marginTop: spacing.md }}
+          />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  flex: { flex: 1, backgroundColor: colors.bg },
+  container: {
+    padding: spacing.xl,
+    paddingBottom: spacing.xxl * 2,
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+  },
+  studioWrap: {
+    marginBottom: spacing.lg,
+  },
+  studioLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  studioRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  studioBtn: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  studioBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  studioBtnText: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    color: colors.muted,
+  },
+  studioBtnTextActive: {
+    color: colors.primary,
+  },
+  gdprRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+    marginTop: spacing.sm,
+  },
+  gdprText: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.text,
+  },
+});
