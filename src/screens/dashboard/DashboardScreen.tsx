@@ -10,8 +10,11 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useStudio } from '../../context/StudioContext';
+import { useTheme } from '../../context/ThemeContext';
 import { toVocative } from '../../utils/vocative';
 import { formatDT } from '../../utils/dateFormat';
 import { getMyReservations, cancelReservation } from '../../api/reservations';
@@ -24,9 +27,10 @@ import Spinner from '../../components/common/Spinner';
 import Button from '../../components/common/Button';
 import SwipeableRow from '../../components/common/SwipeableRow';
 import RescheduleModal from '../../components/dashboard/RescheduleModal';
-import { colors, fonts, spacing, radius, shadows } from '../../config/theme';
+import { fonts, spacing, radius, shadows, gradients } from '../../config/theme';
 
 export default function DashboardScreen() {
+  const { colors } = useTheme();
   const { user } = useAuth();
   const { studioId, studios, currentStudio, setStudioId: switchStudio } = useStudio();
   const navigation = useNavigation<any>();
@@ -103,156 +107,197 @@ export default function DashboardScreen() {
   if (loading) return <Spinner fullScreen message="Načítám přehled..." />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['bottom', 'left', 'right']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={{ paddingBottom: spacing.xxl }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>
-              {greeting ? `Dobrý den, ${greeting}! 👋` : 'Dobrý den! 👋'}
-            </Text>
-            <Text style={styles.sub}>Váš přehled</Text>
-          </View>
-          <Avatar avatar={user?.avatar || null} size={48} />
-        </View>
-
-        {/* Výběr studia */}
-        {studios.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.studioBar}>
-            <View style={styles.studioRow}>
-              {studios.map(s => (
-                <TouchableOpacity
-                  key={s.id}
-                  onPress={() => switchStudio(s.id)}
-                  style={[styles.studioPill, s.id === studioId && styles.studioPillActive]}
-                >
-                  <Text style={[styles.studioPillText, s.id === studioId && styles.studioPillTextActive]}>
-                    {s.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+        {/* Gradient Hero Header */}
+        <LinearGradient
+          colors={gradients.sport}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroHeader}
+        >
+          <SafeAreaView edges={['top']} style={styles.heroInner}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.greeting}>
+                {greeting ? `Dobrý den, ${greeting}! 👋` : 'Dobrý den! 👋'}
+              </Text>
+              <Text style={styles.sub}>Váš přehled</Text>
             </View>
-          </ScrollView>
-        )}
+            <Avatar avatar={user?.avatar || null} size={48} />
+          </SafeAreaView>
+        </LinearGradient>
 
-        {/* Nadcházející lekce */}
-        <Text style={styles.sectionTitle}>Nadcházející lekce</Text>
-        {reservations.length === 0 ? (
-          <Card>
-            <Text style={styles.emptyText}>Žádné nadcházející lekce</Text>
-          </Card>
-        ) : (
-          reservations.map(r => (
-            <SwipeableRow
-              key={r.id}
-              onSwipeAction={() => handleCancel(r.id)}
-              actionLabel="Zrušit"
-            >
-              <Card style={styles.lessonCard}>
-                <View style={styles.lessonHeader}>
-                  <Text style={styles.lessonPkg}>{r.package_name || 'Lekce'}</Text>
-                  <Text style={styles.lessonType}>
-                    {r.lt_code === 'B' ? '60 min' : '30 min'}
-                  </Text>
-                </View>
-                <Text style={styles.lessonTime}>{formatDT(r.slot_datetime)}</Text>
-                {r.trainer_name && (
-                  <Text style={styles.lessonTrainer}>Trenér: {r.trainer_name}</Text>
-                )}
-                <View style={styles.lessonActions}>
-                  <Button
-                    title="Přesunout"
-                    variant="secondary"
-                    size="sm"
-                    onPress={() => { setRescheduleId(r.id); setRescheduleLtCode(r.lt_code); }}
-                  />
-                </View>
-              </Card>
-            </SwipeableRow>
-          ))
-        )}
-
-        {/* Aktivní balíčky — v přehledu jen ty s pkg_status === 'active' */}
-        <Text style={styles.sectionTitle}>Aktivní balíčky</Text>
-        {purchases.filter(p => p.pkg_status === 'active').length === 0 ? (
-          <Card>
-            <Text style={styles.emptyText}>Žádné aktivní balíčky</Text>
-          </Card>
-        ) : (
-          purchases.filter(p => p.pkg_status === 'active').map(p => {
-            const remaining = p.lessons_remaining || 0;
-            const isGift = p.payment_method === 'bonus';
-            // Platnost: computed z backendu validity_end, nebo fallback
-            let validityText = '';
-            if (p.validity_end) {
-              validityText = `Platnost do: ${new Date(p.validity_end).toLocaleDateString('cs-CZ')}`;
-            } else if (p.validity_weeks && p.validity_weeks > 0) {
-              validityText = `Platnost: ${p.validity_weeks} týdnů od první lekce`;
-            }
-            return (
-              <Card key={p.id} style={styles.pkgCard}>
-                {isGift && (
-                  <View style={styles.giftBadge}>
-                    <Text style={styles.giftBadgeText}>
-                      🎁 Dárek{p.referred_friend_name ? ` za doporučení ${p.referred_friend_name}` : ''}
+        <View style={styles.contentPadding}>
+          {/* Výběr studia */}
+          {studios.length > 1 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.studioBar}>
+              <View style={styles.studioRow}>
+                {studios.map(s => (
+                  <TouchableOpacity
+                    key={s.id}
+                    onPress={() => switchStudio(s.id)}
+                    style={[
+                      styles.studioPill,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                      s.id === studioId && { backgroundColor: colors.primary, borderColor: colors.primary },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.studioPillText,
+                        { color: colors.muted },
+                        s.id === studioId && { color: colors.white },
+                      ]}
+                    >
+                      {s.name}
                     </Text>
-                  </View>
-                )}
-                <Text style={styles.pkgName}>{p.package_name}</Text>
-                <View style={styles.pkgRow}>
-                  <Text style={styles.pkgLabel}>Zbývá lekcí</Text>
-                  <Text style={styles.pkgValue}>{remaining}</Text>
-                </View>
-                {validityText ? <Text style={styles.pkgValid}>{validityText}</Text> : null}
-                {remaining > 0 && (
-                  <View style={styles.pkgActions}>
-                    <Button
-                      title="Rezervovat lekci"
-                      variant="secondary"
-                      size="sm"
-                      onPress={() => {
-                        navigation.navigate('Booking', {
-                          screen: 'CalendarSlots',
-                          params: {
-                            packageId: p.package_id,
-                            packageName: p.package_name,
-                            lessonCount: 1,
-                            lessonTypeCode: p.lesson_type_code || 'A',
-                            price: 0,
-                            purchaseId: p.id,
-                          },
-                        });
-                      }}
-                    />
-                  </View>
-                )}
-              </Card>
-            );
-          })
-        )}
-
-        {/* Odznaky */}
-        {badges.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Odznaky</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.badgeRow}>
-                {badges.map(b => (
-                  <View key={b.id} style={styles.badgeItem}>
-                    <Text style={styles.badgeIcon}>{b.emoji}</Text>
-                    <Text style={styles.badgeName}>{b.name}</Text>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             </ScrollView>
-          </>
-        )}
+          )}
 
-        <View style={{ height: spacing.xxl }} />
+          {/* Nadcházející lekce */}
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="time-outline" size={18} color={colors.text} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Nadcházející lekce</Text>
+          </View>
+          {reservations.length === 0 ? (
+            <Card>
+              <Text style={[styles.emptyText, { color: colors.muted }]}>Žádné nadcházející lekce</Text>
+            </Card>
+          ) : (
+            reservations.map(r => {
+              const canModify = (new Date(r.slot_datetime).getTime() - Date.now()) > 24 * 3600 * 1000;
+              return (
+                <SwipeableRow
+                  key={r.id}
+                  onSwipeRight={canModify ? () => handleCancel(r.id) : undefined}
+                  rightLabel="Zrušit"
+                  onSwipeLeft={canModify ? () => { setRescheduleId(r.id); setRescheduleLtCode(r.lt_code); } : undefined}
+                  leftLabel="Přesunout"
+                >
+                  <Card variant="accent" accentColor={colors.primary} style={styles.lessonCard}>
+                    <View style={styles.lessonHeader}>
+                      <Text style={[styles.lessonPkg, { color: colors.text }]}>{r.package_name || 'Lekce'}</Text>
+                      <Text style={[styles.lessonType, { color: colors.muted, backgroundColor: colors.primaryLight }]}>
+                        {r.lt_code === 'B' ? '60 min' : '30 min'}
+                      </Text>
+                    </View>
+                    <Text style={[styles.lessonTime, { color: colors.primary }]}>{formatDT(r.slot_datetime)}</Text>
+                    {r.trainer_name && (
+                      <Text style={[styles.lessonTrainer, { color: colors.muted }]}>Trenér: {r.trainer_name}</Text>
+                    )}
+                    {!canModify && (
+                      <Text style={styles.lessonNoModify}>Do 24 hodin – nelze měnit</Text>
+                    )}
+                  </Card>
+                </SwipeableRow>
+              );
+            })
+          )}
+
+          {/* Aktivní balíčky — v přehledu jen ty s pkg_status === 'active' */}
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="flash-outline" size={18} color={colors.text} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Aktivní balíčky</Text>
+          </View>
+          {purchases.filter(p => p.pkg_status === 'active').length === 0 ? (
+            <Card>
+              <Text style={[styles.emptyText, { color: colors.muted }]}>Žádné aktivní balíčky</Text>
+            </Card>
+          ) : (
+            purchases.filter(p => p.pkg_status === 'active').map(p => {
+              const remaining = p.lessons_remaining || 0;
+              const isGift = p.payment_method === 'bonus';
+              const total = p.lessons_total || 0;
+              const progressPercent = total > 0
+                ? Math.round(((total - remaining) / total) * 100)
+                : 0;
+              // Platnost: computed z backendu validity_end, nebo fallback
+              let validityText = '';
+              if (p.validity_end) {
+                validityText = `Platnost do: ${new Date(p.validity_end).toLocaleDateString('cs-CZ')}`;
+              } else if (p.validity_weeks && p.validity_weeks > 0) {
+                validityText = `Platnost: ${p.validity_weeks} týdnů od první lekce`;
+              }
+              return (
+                <Card key={p.id} style={styles.pkgCard}>
+                  {isGift && (
+                    <View style={styles.giftBadge}>
+                      <Text style={styles.giftBadgeText}>
+                        🎁 Dárek{p.referred_friend_name ? ` za doporučení ${p.referred_friend_name}` : ''}
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={[styles.pkgName, { color: colors.text }]}>{p.package_name}</Text>
+                  <View style={styles.pkgRow}>
+                    <Text style={[styles.pkgLabel, { color: colors.muted }]}>Zbývá lekcí</Text>
+                    <Text style={[styles.pkgValue, { color: colors.primary }]}>{remaining}</Text>
+                  </View>
+                  {/* Progress bar */}
+                  <View style={[styles.progressBg, { backgroundColor: colors.border }]}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        { backgroundColor: colors.primary, width: `${progressPercent}%` },
+                      ]}
+                    />
+                  </View>
+                  {validityText ? <Text style={[styles.pkgValid, { color: colors.muted }]}>{validityText}</Text> : null}
+                  {remaining > 0 && (
+                    <View style={styles.pkgActions}>
+                      <Button
+                        title="Rezervovat lekci"
+                        variant="secondary"
+                        size="sm"
+                        onPress={() => {
+                          navigation.navigate('Booking', {
+                            screen: 'CalendarSlots',
+                            params: {
+                              packageId: p.package_id,
+                              packageName: p.package_name,
+                              lessonCount: 1,
+                              lessonTypeCode: p.lesson_type_code || 'A',
+                              price: 0,
+                              purchaseId: p.id,
+                            },
+                          });
+                        }}
+                      />
+                    </View>
+                  )}
+                </Card>
+              );
+            })
+          )}
+
+          {/* Odznaky */}
+          {badges.length > 0 && (
+            <>
+              <View style={styles.sectionTitleRow}>
+                <Ionicons name="trophy-outline" size={18} color={colors.text} />
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Odznaky</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.badgeRow}>
+                  {badges.map(b => (
+                    <View key={b.id} style={styles.badgeItem}>
+                      <Text style={styles.badgeIcon}>{b.emoji}</Text>
+                      <Text style={[styles.badgeName, { color: colors.text }]}>{b.name}</Text>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </>
+          )}
+
+          <View style={{ height: spacing.xxl }} />
+        </View>
       </ScrollView>
 
       <RescheduleModal
@@ -270,20 +315,22 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
   scroll: { flex: 1 },
-  container: { padding: spacing.lg },
+  contentPadding: { padding: spacing.lg },
 
-  header: {
+  // Gradient hero header
+  heroHeader: {},
+  heroInner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xl,
-    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
   },
   headerLeft: { flex: 1 },
-  greeting: { fontFamily: fonts.headingBold, fontSize: 24, color: colors.text },
-  sub: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted, marginTop: 2 },
+  greeting: { fontFamily: fonts.headingBold, fontSize: 24, color: '#ffffff' },
+  sub: { fontFamily: fonts.regular, fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
 
   // Studio selector
   studioBar: { marginBottom: spacing.sm },
@@ -292,35 +339,33 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: radius.full,
-    backgroundColor: colors.card,
     borderWidth: 1.5,
-    borderColor: colors.border,
   },
-  studioPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  studioPillText: { fontFamily: fonts.medium, fontSize: 13, color: colors.muted },
-  studioPillTextActive: { color: colors.white },
+  studioPillText: { fontFamily: fonts.medium, fontSize: 13 },
 
+  // Section titles
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+  },
   sectionTitle: {
     fontFamily: fonts.heading,
     fontSize: 17,
-    color: colors.text,
-    marginBottom: spacing.md,
-    marginTop: spacing.lg,
   },
 
-  emptyText: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted, textAlign: 'center' },
+  emptyText: { fontFamily: fonts.regular, fontSize: 14, textAlign: 'center' },
 
   // Lekce
   lessonCard: { marginBottom: spacing.md },
   lessonHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  lessonPkg: { fontFamily: fonts.semiBold, fontSize: 15, color: colors.text },
-  lessonType: { fontFamily: fonts.medium, fontSize: 12, color: colors.muted, backgroundColor: colors.primaryLight, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
-  lessonTime: { fontFamily: fonts.regular, fontSize: 14, color: colors.primary, marginTop: spacing.xs },
-  lessonTrainer: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, marginTop: 2 },
-  lessonActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: spacing.md, gap: spacing.sm },
+  lessonPkg: { fontFamily: fonts.semiBold, fontSize: 15 },
+  lessonType: { fontFamily: fonts.medium, fontSize: 12, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
+  lessonTime: { fontFamily: fonts.regular, fontSize: 14, marginTop: spacing.xs },
+  lessonTrainer: { fontFamily: fonts.regular, fontSize: 13, marginTop: 2 },
+  lessonNoModify: { fontFamily: fonts.medium, fontSize: 12, color: '#92400e', backgroundColor: '#fef3c7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, marginTop: spacing.sm, alignSelf: 'flex-start', overflow: 'hidden' },
 
   // Balíčky
   pkgCard: { marginBottom: spacing.md },
@@ -342,18 +387,18 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   giftBadgeText: { fontFamily: fonts.medium, fontSize: 12, color: '#92400e' },
-  pkgName: { fontFamily: fonts.semiBold, fontSize: 15, color: colors.text, marginBottom: spacing.sm },
+  pkgName: { fontFamily: fonts.semiBold, fontSize: 15, marginBottom: spacing.sm },
   pkgRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs },
-  pkgLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
-  pkgValue: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.primary },
-  progressBg: { height: 6, backgroundColor: colors.border, borderRadius: 3, marginVertical: spacing.sm },
-  progressFill: { height: 6, backgroundColor: colors.primary, borderRadius: 3 },
-  pkgValid: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  pkgLabel: { fontFamily: fonts.regular, fontSize: 13 },
+  pkgValue: { fontFamily: fonts.semiBold, fontSize: 13 },
+  progressBg: { height: 6, borderRadius: 3, marginVertical: spacing.sm },
+  progressFill: { height: 6, borderRadius: 3 },
+  pkgValid: { fontFamily: fonts.regular, fontSize: 12 },
   pkgActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: spacing.md },
 
   // Odznaky
   badgeRow: { flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.xs },
   badgeItem: { alignItems: 'center', width: 64 },
   badgeIcon: { fontSize: 32 },
-  badgeName: { fontFamily: fonts.medium, fontSize: 11, color: colors.text, textAlign: 'center', marginTop: 4 },
+  badgeName: { fontFamily: fonts.medium, fontSize: 11, textAlign: 'center', marginTop: 4 },
 });

@@ -13,11 +13,13 @@ import { forgotPassword } from '../../api/auth';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
-import { colors, fonts, spacing, radius } from '../../config/theme';
+import { fonts, spacing, radius } from '../../config/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
 export default function ForgotPasswordScreen({ navigation }: Props) {
+  const { colors } = useTheme();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,16 +45,16 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.flex}
+      style={[styles.flex, { backgroundColor: colors.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.card}>
-          <Text style={styles.title}>Zapomenuté heslo</Text>
-          <Text style={styles.desc}>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.title, { color: colors.text }]}>Zapomenuté heslo</Text>
+          <Text style={[styles.desc, { color: colors.muted }]}>
             Zadejte email, na který vám pošleme odkaz pro obnovení hesla.
           </Text>
 
@@ -90,27 +92,24 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1 },
   container: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: spacing.xl,
   },
   card: {
-    backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: spacing.xl,
   },
   title: {
     fontFamily: fonts.headingBold,
     fontSize: 22,
-    color: colors.text,
     marginBottom: spacing.sm,
   },
   desc: {
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.muted,
     marginBottom: spacing.xl,
     lineHeight: 20,
   },

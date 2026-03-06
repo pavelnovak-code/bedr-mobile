@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { endpoints } from '../config/api';
-import { User, Badge, Offer, ReferralInfo, ReferralStats } from './types';
+import { User, Badge, Offer, Lesson, ReferralInfo, ReferralStats } from './types';
 
 export async function getProfile(): Promise<User> {
   const { data } = await apiClient.get(endpoints.profile);
@@ -66,4 +66,9 @@ export async function updateConsent(payload: {
   consent_system?: boolean;
 }): Promise<void> {
   await apiClient.put(endpoints.gdprConsent, payload);
+}
+
+export async function getLessons(): Promise<Lesson[]> {
+  const { data } = await apiClient.get(endpoints.myLessons);
+  return data;
 }

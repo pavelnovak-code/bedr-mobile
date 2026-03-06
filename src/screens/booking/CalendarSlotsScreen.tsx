@@ -7,17 +7,21 @@ import {
   TouchableOpacity,
   Alert as RNAlert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { BookingStackParamList } from '../../navigation/BookingStack';
 import { useStudio } from '../../context/StudioContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getSlots } from '../../api/slots';
 import { bookReservation } from '../../api/reservations';
 import { Slot } from '../../api/types';
 import { formatMonthYear, formatShortDate, formatDT } from '../../utils/dateFormat';
 import Spinner from '../../components/common/Spinner';
 import Card from '../../components/common/Card';
-import Button from '../../components/common/Button';
-import { colors, fonts, spacing, radius } from '../../config/theme';
+import StepIndicator from '../../components/common/StepIndicator';
+import GradientButton from '../../components/common/GradientButton';
+import { fonts, spacing, radius } from '../../config/theme';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval, isToday, isBefore } from 'date-fns';
 
 type Props = NativeStackScreenProps<BookingStackParamList, 'CalendarSlots'>;
@@ -25,6 +29,7 @@ type Props = NativeStackScreenProps<BookingStackParamList, 'CalendarSlots'>;
 export default function CalendarSlotsScreen({ navigation, route }: Props) {
   const { packageId, packageName, lessonCount, lessonTypeCode, price, purchaseId } = route.params;
   const { studioId } = useStudio();
+  const { colors } = useTheme();
   const isBookFromPurchase = !!purchaseId; // režim rezervace z existujícího balíčku
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -33,6 +38,16 @@ export default function CalendarSlotsScreen({ navigation, route }: Props) {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [booking, setBooking] = useState(false);
   const [bookSuccess, setBookSuccess] = useState<string | null>(null);
+
+  // Reset stavu při novém otevření (navigate reuse fix)
+  useFocusEffect(
+    React.useCallback(() => {
+      setBookSuccess(null);
+      setBooking(false);
+      setSelectedDate(null);
+      setSlots([]);
+    }, [purchaseId, packageId])
+  );
 
   // Dny v kalendáři
   const calendarDays = useMemo(() => {
@@ -93,12 +108,12 @@ export default function CalendarSlotsScreen({ navigation, route }: Props) {
   // Success screen po přímé rezervaci z balíčku
   if (bookSuccess) {
     return (
-      <View style={styles.successContainer}>
-        <Text style={styles.successIcon}>✅</Text>
-        <Text style={styles.successTitle}>Lekce zarezervována!</Text>
-        <Text style={styles.successPkg}>{packageName}</Text>
-        <Text style={styles.successText}>{formatDT(bookSuccess)}</Text>
-        <Button
+      <View style={[styles.successContainer, { backgroundColor: colors.bg }]}>
+        <Ionicons name="checkmark-circle" size={64} color={colors.success} style={{ marginBottom: spacing.lg }} />
+        <Text style={[styles.successTitle, { color: colors.text }]}>Lekce zarezervována!</Text>
+        <Text style={[styles.successPkg, { color: colors.primary }]}>{packageName}</Text>
+        <Text style={[styles.successText, { color: colors.text }]}>{formatDT(bookSuccess)}</Text>
+        <GradientButton
           title="Zpět na přehled"
           onPress={() => navigation.getParent()?.navigate('Dashboard')}
           fullWidth
@@ -110,18 +125,25 @@ export default function CalendarSlotsScreen({ navigation, route }: Props) {
   }
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>{isBookFromPurchase ? 'Rezervovat lekci' : 'Krok 2: Vyberte termín'}</Text>
-      <Text style={styles.pkgInfo}>{packageName} • {lessonTypeCode === 'B' ? '60 min' : '30 min'}</Text>
+    <View style={[styles.screenContainer, { backgroundColor: colors.bg }]}>
+      {isBookFromPurchase ? (
+        <View style={styles.fixedHeading}>
+          <Text style={[styles.heading, { color: colors.text }]}>Rezervovat lekci</Text>
+        </View>
+      ) : (
+        <StepIndicator steps={['Balíček', 'Termín', 'Potvrzení']} currentStep={1} />
+      )}
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+        <Text style={[styles.pkgInfo, { color: colors.primary }]}>{packageName} • {lessonTypeCode === 'B' ? '60 min' : '30 min'}</Text>
 
       {/* Měsíc navigace */}
       <View style={styles.monthNav}>
         <TouchableOpacity onPress={() => setCurrentMonth(subMonths(currentMonth, 1))}>
-          <Text style={styles.monthArrow}>‹</Text>
+          <Text style={[styles.monthArrow, { color: colors.primary }]}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.monthLabel}>{formatMonthYear(currentMonth)}</Text>
+        <Text style={[styles.monthLabel, { color: colors.text }]}>{formatMonthYear(currentMonth)}</Text>
         <TouchableOpacity onPress={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-          <Text style={styles.monthArrow}>›</Text>
+          <Text style={[styles.monthArrow, { color: colors.primary }]}>›</Text>
         </TouchableOpacity>
       </View>
 
@@ -129,7 +151,7 @@ export default function CalendarSlotsScreen({ navigation, route }: Props) {
       <Card padded={false} style={styles.calCard}>
         <View style={styles.dayNamesRow}>
           {dayNames.map(d => (
-            <Text key={d} style={styles.dayNameText}>{d}</Text>
+            <Text key={d} style={[styles.dayNameText, { color: colors.muted }]}>{d}</Text>
           ))}
         </View>
         <View style={styles.daysGrid}>
@@ -150,14 +172,15 @@ export default function CalendarSlotsScreen({ navigation, route }: Props) {
                 disabled={isPast}
                 style={[
                   styles.dayCell,
-                  isSelected && styles.dayCellSelected,
-                  today && !isSelected && styles.dayCellToday,
+                  isSelected && { backgroundColor: colors.primary, borderRadius: radius.full },
+                  today && !isSelected && { backgroundColor: colors.primaryLight, borderRadius: radius.full },
                 ]}
               >
                 <Text style={[
                   styles.dayText,
-                  isPast && styles.dayTextPast,
-                  isSelected && styles.dayTextSelected,
+                  { color: colors.text },
+                  isPast && { color: colors.border },
+                  isSelected && { color: colors.white },
                 ]}>
                   {format(day, 'd')}
                 </Text>
@@ -170,14 +193,14 @@ export default function CalendarSlotsScreen({ navigation, route }: Props) {
       {/* Dostupné sloty */}
       {selectedDate && (
         <View style={styles.slotsSection}>
-          <Text style={styles.slotsTitle}>
+          <Text style={[styles.slotsTitle, { color: colors.text }]}>
             Dostupné časy – {formatShortDate(selectedDate)}
           </Text>
           {loadingSlots ? (
             <Spinner message="Načítám sloty..." />
           ) : slots.length === 0 ? (
             <Card>
-              <Text style={styles.emptyText}>Žádné volné časy v tento den</Text>
+              <Text style={[styles.emptyText, { color: colors.muted }]}>Žádné volné časy v tento den</Text>
             </Card>
           ) : (
             <View style={styles.slotsGrid}>
@@ -185,12 +208,12 @@ export default function CalendarSlotsScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   key={slot.time}
                   onPress={() => selectSlot(slot)}
-                  style={styles.slotBtn}
+                  style={[styles.slotBtn, { backgroundColor: colors.card, borderColor: colors.primary }]}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.slotTime}>{slot.time}</Text>
+                  <Text style={[styles.slotTime, { color: colors.primary }]}>{slot.time}</Text>
                   {slot.trainer && (
-                    <Text style={styles.slotTrainer}>{slot.trainer.name}</Text>
+                    <Text style={[styles.slotTrainer, { color: colors.muted }]}>{slot.trainer.name}</Text>
                   )}
                 </TouchableOpacity>
               ))}
@@ -199,24 +222,27 @@ export default function CalendarSlotsScreen({ navigation, route }: Props) {
         </View>
       )}
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: colors.bg },
+  screenContainer: { flex: 1 },
+  scroll: { flex: 1 },
   container: { padding: spacing.lg },
-  heading: { fontFamily: fonts.heading, fontSize: 18, color: colors.text, marginBottom: spacing.xs },
-  pkgInfo: { fontFamily: fonts.regular, fontSize: 14, color: colors.primary, marginBottom: spacing.lg },
+  fixedHeading: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  heading: { fontFamily: fonts.heading, fontSize: 18, marginBottom: spacing.xs },
+  pkgInfo: { fontFamily: fonts.regular, fontSize: 14, marginBottom: spacing.lg },
 
   // Month nav
   monthNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  monthArrow: { fontSize: 28, color: colors.primary, paddingHorizontal: spacing.md },
-  monthLabel: { fontFamily: fonts.heading, fontSize: 17, color: colors.text, textTransform: 'capitalize' },
+  monthArrow: { fontSize: 28, paddingHorizontal: spacing.md },
+  monthLabel: { fontFamily: fonts.heading, fontSize: 17, textTransform: 'capitalize' },
 
   // Calendar
   calCard: { marginBottom: spacing.lg, padding: spacing.md },
   dayNamesRow: { flexDirection: 'row', marginBottom: spacing.xs },
-  dayNameText: { flex: 1, textAlign: 'center', fontFamily: fonts.semiBold, fontSize: 12, color: colors.muted },
+  dayNameText: { flex: 1, textAlign: 'center', fontFamily: fonts.semiBold, fontSize: 12 },
   daysGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell: {
     width: '14.28%',
@@ -224,44 +250,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dayCellSelected: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-  },
-  dayCellToday: {
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: radius.full,
-  },
-  dayText: { fontFamily: fonts.medium, fontSize: 14, color: colors.text },
-  dayTextPast: { color: colors.border },
-  dayTextSelected: { color: colors.white },
+  dayText: { fontFamily: fonts.medium, fontSize: 14 },
 
   // Slots
   slotsSection: { marginTop: spacing.sm },
-  slotsTitle: { fontFamily: fonts.heading, fontSize: 16, color: colors.text, marginBottom: spacing.md },
-  emptyText: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted, textAlign: 'center' },
+  slotsTitle: { fontFamily: fonts.heading, fontSize: 16, marginBottom: spacing.md },
+  emptyText: { fontFamily: fonts.regular, fontSize: 14, textAlign: 'center' },
   slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   slotBtn: {
-    backgroundColor: colors.card,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderWidth: 1.5,
-    borderColor: colors.primary,
     alignItems: 'center',
     minWidth: 80,
   },
-  slotTime: { fontFamily: fonts.semiBold, fontSize: 16, color: colors.primary },
-  slotTrainer: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  slotTime: { fontFamily: fonts.semiBold, fontSize: 16 },
+  slotTrainer: { fontFamily: fonts.regular, fontSize: 11, marginTop: 2 },
 
   // Success
   successContainer: {
-    flex: 1, backgroundColor: colors.bg, justifyContent: 'center',
+    flex: 1, justifyContent: 'center',
     alignItems: 'center', padding: spacing.xl,
   },
-  successIcon: { fontSize: 64, marginBottom: spacing.lg },
-  successTitle: { fontFamily: fonts.headingBold, fontSize: 24, color: colors.text, marginBottom: spacing.sm },
-  successPkg: { fontFamily: fonts.semiBold, fontSize: 16, color: colors.primary, marginBottom: spacing.xs },
-  successText: { fontFamily: fonts.regular, fontSize: 16, color: colors.text },
+  successTitle: { fontFamily: fonts.headingBold, fontSize: 24, marginBottom: spacing.sm },
+  successPkg: { fontFamily: fonts.semiBold, fontSize: 16, marginBottom: spacing.xs },
+  successText: { fontFamily: fonts.regular, fontSize: 16 },
 });

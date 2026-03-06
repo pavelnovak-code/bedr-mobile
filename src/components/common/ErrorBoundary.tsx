@@ -1,6 +1,9 @@
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, fonts, spacing } from '../../config/theme';
+import { lightColors as colors, fonts, spacing } from '../../config/theme';
+
+// ErrorBoundary je class component — nemůže použít hooks (useTheme).
+// Používá lightColors jako fallback (error boundary se zobrazí vzácně).
 
 interface Props {
   children: ReactNode;

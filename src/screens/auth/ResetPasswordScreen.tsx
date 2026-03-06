@@ -6,11 +6,13 @@ import { resetPassword } from '../../api/auth';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
-import { colors, fonts, spacing } from '../../config/theme';
+import { fonts, spacing } from '../../config/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
 export default function ResetPasswordScreen({ navigation, route }: Props) {
+  const { colors } = useTheme();
   const token = (route.params as any)?.token || '';
 
   const [password, setPassword] = useState('');
@@ -57,12 +59,12 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        style={styles.scroll}
+        style={[styles.scroll, { backgroundColor: colors.bg }]}
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Nové heslo</Text>
-        <Text style={styles.desc}>Zadejte své nové heslo.</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Nové heslo</Text>
+        <Text style={[styles.desc, { color: colors.muted }]}>Zadejte své nové heslo.</Text>
 
         <Alert message={msg} type={msgType} visible={!!msg} onDismiss={() => setMsg('')} />
 
@@ -97,18 +99,16 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scroll: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flex: 1 },
   container: { padding: spacing.lg },
   title: {
     fontFamily: fonts.headingBold,
     fontSize: 22,
-    color: colors.text,
     marginBottom: spacing.xs,
   },
   desc: {
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.muted,
     marginBottom: spacing.xl,
   },
 });

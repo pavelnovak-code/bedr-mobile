@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "bedr",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash.png",
@@ -32,7 +32,8 @@
       "expo-secure-store",
       "expo-notifications",
       "expo-image-picker",
-      "expo-asset"
+      "expo-asset",
+      "expo-system-ui"
     ]
   }
 }

@@ -18,12 +18,14 @@ import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
 import AvatarPicker from '../../components/common/AvatarPicker';
-import { colors, fonts, spacing, radius } from '../../config/theme';
+import { fonts, spacing, radius } from '../../config/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
 export default function RegisterScreen({ route }: Props) {
   const { register } = useAuth();
+  const { colors } = useTheme();
 
   const [jmeno, setJmeno] = useState('');
   const [prijmeni, setPrijmeni] = useState('');
@@ -86,7 +88,7 @@ export default function RegisterScreen({ route }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.flex}
+      style={[styles.flex, { backgroundColor: colors.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -95,7 +97,7 @@ export default function RegisterScreen({ route }: Props) {
       >
         <Alert message={error} visible={!!error} onDismiss={() => setError('')} />
 
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
           <AvatarPicker selected={avatar} onSelect={setAvatar} />
 
           <Input
@@ -138,7 +140,7 @@ export default function RegisterScreen({ route }: Props) {
 
           {studios.length > 1 && (
             <View style={styles.studioWrap}>
-              <Text style={styles.studioLabel}>Studio:</Text>
+              <Text style={[styles.studioLabel, { color: colors.text }]}>Studio:</Text>
               <View style={styles.studioRow}>
                 {studios.map(s => (
                   <TouchableOpacity
@@ -146,12 +148,14 @@ export default function RegisterScreen({ route }: Props) {
                     onPress={() => setStudioId(s.id)}
                     style={[
                       styles.studioBtn,
-                      s.id === studioId && styles.studioBtnActive,
+                      { borderColor: colors.border, backgroundColor: colors.card },
+                      s.id === studioId && { borderColor: colors.primary, backgroundColor: colors.primaryLight },
                     ]}
                   >
                     <Text style={[
                       styles.studioBtnText,
-                      s.id === studioId && styles.studioBtnTextActive,
+                      { color: colors.muted },
+                      s.id === studioId && { color: colors.primary },
                     ]}>
                       {s.name}
                     </Text>
@@ -175,7 +179,7 @@ export default function RegisterScreen({ route }: Props) {
               trackColor={{ false: colors.border, true: colors.primaryLight }}
               thumbColor={gdprConsent ? colors.primary : '#f4f3f4'}
             />
-            <Text style={styles.gdprText}>
+            <Text style={[styles.gdprText, { color: colors.text }]}>
               Souhlasím se zpracováním osobních údajů *
             </Text>
           </View>
@@ -195,13 +199,12 @@ export default function RegisterScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1 },
   container: {
     padding: spacing.xl,
     paddingBottom: spacing.xxl * 2,
   },
   card: {
-    backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: spacing.xl,
   },
@@ -211,7 +214,6 @@ const styles = StyleSheet.create({
   studioLabel: {
     fontFamily: fonts.medium,
     fontSize: 13,
-    color: colors.text,
     marginBottom: spacing.sm,
   },
   studioRow: {
@@ -224,20 +226,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  studioBtnActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
   },
   studioBtnText: {
     fontFamily: fonts.medium,
     fontSize: 14,
-    color: colors.muted,
-  },
-  studioBtnTextActive: {
-    color: colors.primary,
   },
   gdprRow: {
     flexDirection: 'row',
@@ -250,6 +242,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: colors.text,
   },
 });

@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   TextInputProps,
 } from 'react-native';
-import { colors, fonts, radius, spacing } from '../../config/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { fonts, radius, spacing } from '../../config/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -24,30 +26,58 @@ export default function Input({
   style,
   ...rest
 }: InputProps) {
+  const { colors } = useTheme();
   const [showPassword, setShowPassword] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   return (
     <View style={styles.wrapper}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputWrap, error && styles.inputError]}>
+      {label && <Text style={[styles.label, { color: colors.text }]}>{label}</Text>}
+      <View
+        style={[
+          styles.inputWrap,
+          {
+            borderColor: error
+              ? colors.danger
+              : isFocused
+                ? colors.primary
+                : colors.border,
+            backgroundColor: isFocused ? colors.primaryLight : colors.card,
+            borderWidth: isFocused ? 2 : 1.5,
+          },
+        ]}
+      >
         <TextInput
-          style={[styles.input, style]}
+          style={[styles.input, { color: colors.text }, style]}
           placeholderTextColor={colors.muted}
           secureTextEntry={isPassword && !showPassword}
           autoCapitalize="none"
+          onFocus={(e) => {
+            setIsFocused(true);
+            rest.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            rest.onBlur?.(e);
+          }}
           {...rest}
         />
         {isPassword && (
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}
             style={styles.eyeBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+            <Ionicons
+              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+              size={22}
+              color={colors.muted}
+            />
           </TouchableOpacity>
         )}
         {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>}
     </View>
   );
 }
@@ -59,33 +89,22 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fonts.medium,
     fontSize: 13,
-    color: colors.text,
     marginBottom: spacing.xs,
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.white,
-  },
-  inputError: {
-    borderColor: colors.danger,
+    borderRadius: radius.lg,
   },
   input: {
     flex: 1,
     fontFamily: fonts.regular,
     fontSize: 15,
-    color: colors.text,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
   },
   eyeBtn: {
     paddingHorizontal: spacing.md,
-  },
-  eyeText: {
-    fontSize: 18,
   },
   rightIcon: {
     paddingRight: spacing.md,
@@ -93,7 +112,6 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: colors.danger,
     marginTop: spacing.xs,
   },
 });

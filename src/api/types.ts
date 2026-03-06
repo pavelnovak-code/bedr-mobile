@@ -87,6 +87,17 @@ export interface Reservation {
   trainer_name?: string;
 }
 
+export interface Lesson {
+  id: number;
+  slot_datetime: string;
+  status: 'confirmed' | 'cancelled';
+  completed: number;
+  studio_name: string;
+  lesson_type_name: string;
+  lt_code: 'A' | 'B';
+  trainer_name: string;
+}
+
 export interface Slot {
   time: string;
   datetime: string;

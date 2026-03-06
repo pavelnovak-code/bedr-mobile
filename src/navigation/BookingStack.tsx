@@ -3,7 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import PackageSelectScreen from '../screens/booking/PackageSelectScreen';
 import CalendarSlotsScreen from '../screens/booking/CalendarSlotsScreen';
 import ConfirmPayScreen from '../screens/booking/ConfirmPayScreen';
-import { colors, fonts } from '../config/theme';
+import { fonts } from '../config/theme';
+import { useTheme } from '../context/ThemeContext';
 
 export type BookingStackParamList = {
   PackageSelect: undefined;
@@ -29,12 +30,14 @@ export type BookingStackParamList = {
 const Stack = createNativeStackNavigator<BookingStackParamList>();
 
 export default function BookingStack() {
+  const { colors } = useTheme();
+
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.white },
-        headerTintColor: colors.primary,
-        headerTitleStyle: { fontFamily: fonts.heading, fontSize: 17 },
+        headerStyle: { backgroundColor: colors.primary },
+        headerTintColor: colors.white,
+        headerTitleStyle: { fontFamily: fonts.heading, fontSize: 17, color: colors.white },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: colors.bg },
       }}

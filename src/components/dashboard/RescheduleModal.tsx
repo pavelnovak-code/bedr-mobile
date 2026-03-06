@@ -9,6 +9,7 @@ import {
   Alert as RNAlert,
 } from 'react-native';
 import { useStudio } from '../../context/StudioContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getSlots } from '../../api/slots';
 import { moveReservation } from '../../api/reservations';
 import { Slot } from '../../api/types';
@@ -16,7 +17,7 @@ import { formatShortDate, formatMonthYear } from '../../utils/dateFormat';
 import Spinner from '../common/Spinner';
 import Button from '../common/Button';
 import Card from '../common/Card';
-import { colors, fonts, spacing, radius } from '../../config/theme';
+import { fonts, spacing, radius } from '../../config/theme';
 import {
   format,
   startOfMonth,
@@ -38,6 +39,7 @@ interface Props {
 
 export default function RescheduleModal({ visible, reservationId, lessonTypeCode, onClose, onMoved }: Props) {
   const { studioId } = useStudio();
+  const { colors, isDark } = useTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -111,11 +113,11 @@ export default function RescheduleModal({ visible, reservationId, lessonTypeCode
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Přesunout lekci</Text>
+      <View style={[styles.modalContainer, { backgroundColor: colors.bg }]}>
+        <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>Přesunout lekci</Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Text style={styles.closeBtn}>✕</Text>
+            <Text style={[styles.closeBtn, { color: colors.muted }]}>✕</Text>
           </TouchableOpacity>
         </View>
 
@@ -123,11 +125,11 @@ export default function RescheduleModal({ visible, reservationId, lessonTypeCode
           {/* Month navigation */}
           <View style={styles.monthNav}>
             <TouchableOpacity onPress={() => setCurrentMonth(subMonths(currentMonth, 1))}>
-              <Text style={styles.monthArrow}>‹</Text>
+              <Text style={[styles.monthArrow, { color: colors.primary }]}>‹</Text>
             </TouchableOpacity>
-            <Text style={styles.monthLabel}>{formatMonthYear(currentMonth)}</Text>
+            <Text style={[styles.monthLabel, { color: colors.text }]}>{formatMonthYear(currentMonth)}</Text>
             <TouchableOpacity onPress={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-              <Text style={styles.monthArrow}>›</Text>
+              <Text style={[styles.monthArrow, { color: colors.primary }]}>›</Text>
             </TouchableOpacity>
           </View>
 
@@ -135,7 +137,7 @@ export default function RescheduleModal({ visible, reservationId, lessonTypeCode
           <Card padded={false} style={styles.calCard}>
             <View style={styles.dayNamesRow}>
               {dayNames.map(d => (
-                <Text key={d} style={styles.dayNameText}>{d}</Text>
+                <Text key={d} style={[styles.dayNameText, { color: colors.muted }]}>{d}</Text>
               ))}
             </View>
             <View style={styles.daysGrid}>
@@ -155,14 +157,15 @@ export default function RescheduleModal({ visible, reservationId, lessonTypeCode
                     disabled={isPast}
                     style={[
                       styles.dayCell,
-                      isSelected && styles.dayCellSelected,
-                      today && !isSelected && styles.dayCellToday,
+                      isSelected && { backgroundColor: colors.primary, borderRadius: radius.full },
+                      today && !isSelected && { backgroundColor: colors.primaryLight, borderRadius: radius.full },
                     ]}
                   >
                     <Text style={[
                       styles.dayText,
-                      isPast && styles.dayTextPast,
-                      isSelected && styles.dayTextSelected,
+                      { color: colors.text },
+                      isPast && { color: colors.border },
+                      isSelected && { color: colors.white },
                     ]}>
                       {format(day, 'd')}
                     </Text>
@@ -175,14 +178,14 @@ export default function RescheduleModal({ visible, reservationId, lessonTypeCode
           {/* Available slots */}
           {selectedDate && (
             <View style={styles.slotsSection}>
-              <Text style={styles.slotsTitle}>
+              <Text style={[styles.slotsTitle, { color: colors.text }]}>
                 Dostupné časy – {formatShortDate(selectedDate)}
               </Text>
               {loadingSlots ? (
                 <Spinner message="Načítám sloty..." />
               ) : slots.length === 0 ? (
                 <Card>
-                  <Text style={styles.emptyText}>Žádné volné časy v tento den</Text>
+                  <Text style={[styles.emptyText, { color: colors.muted }]}>Žádné volné časy v tento den</Text>
                 </Card>
               ) : (
                 <View style={styles.slotsGrid}>
@@ -190,13 +193,13 @@ export default function RescheduleModal({ visible, reservationId, lessonTypeCode
                     <TouchableOpacity
                       key={slot.time}
                       onPress={() => handleSelectSlot(slot)}
-                      style={styles.slotBtn}
+                      style={[styles.slotBtn, { backgroundColor: colors.card, borderColor: colors.primary }]}
                       activeOpacity={0.7}
                       disabled={moving}
                     >
-                      <Text style={styles.slotTime}>{slot.time}</Text>
+                      <Text style={[styles.slotTime, { color: colors.primary }]}>{slot.time}</Text>
                       {slot.trainer && (
-                        <Text style={styles.slotTrainer}>{slot.trainer.name}</Text>
+                        <Text style={[styles.slotTrainer, { color: colors.muted }]}>{slot.trainer.name}</Text>
                       )}
                     </TouchableOpacity>
                   ))}
@@ -207,7 +210,7 @@ export default function RescheduleModal({ visible, reservationId, lessonTypeCode
         </ScrollView>
 
         {moving && (
-          <View style={styles.overlay}>
+          <View style={[styles.overlay, { backgroundColor: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.85)' }]}>
             <Spinner message="Přesouvám lekci..." />
           </View>
         )}
@@ -217,30 +220,28 @@ export default function RescheduleModal({ visible, reservationId, lessonTypeCode
 }
 
 const styles = StyleSheet.create({
-  modalContainer: { flex: 1, backgroundColor: colors.bg },
+  modalContainer: { flex: 1 },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
-  modalTitle: { fontFamily: fonts.heading, fontSize: 18, color: colors.text },
-  closeBtn: { fontSize: 22, color: colors.muted, fontWeight: '600' },
+  modalTitle: { fontFamily: fonts.heading, fontSize: 18 },
+  closeBtn: { fontSize: 22, fontWeight: '600' },
 
   scroll: { flex: 1 },
   content: { padding: spacing.lg },
 
   monthNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  monthArrow: { fontSize: 28, color: colors.primary, paddingHorizontal: spacing.md },
-  monthLabel: { fontFamily: fonts.heading, fontSize: 17, color: colors.text, textTransform: 'capitalize' },
+  monthArrow: { fontSize: 28, paddingHorizontal: spacing.md },
+  monthLabel: { fontFamily: fonts.heading, fontSize: 17, textTransform: 'capitalize' },
 
   calCard: { marginBottom: spacing.lg, padding: spacing.md },
   dayNamesRow: { flexDirection: 'row', marginBottom: spacing.xs },
-  dayNameText: { flex: 1, textAlign: 'center', fontFamily: fonts.semiBold, fontSize: 12, color: colors.muted },
+  dayNameText: { flex: 1, textAlign: 'center', fontFamily: fonts.semiBold, fontSize: 12 },
   daysGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell: {
     width: '14.28%',
@@ -248,39 +249,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dayCellSelected: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-  },
-  dayCellToday: {
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: radius.full,
-  },
-  dayText: { fontFamily: fonts.medium, fontSize: 14, color: colors.text },
-  dayTextPast: { color: colors.border },
-  dayTextSelected: { color: colors.white },
+  dayText: { fontFamily: fonts.medium, fontSize: 14 },
 
   slotsSection: { marginTop: spacing.sm },
-  slotsTitle: { fontFamily: fonts.heading, fontSize: 16, color: colors.text, marginBottom: spacing.md },
-  emptyText: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted, textAlign: 'center' },
+  slotsTitle: { fontFamily: fonts.heading, fontSize: 16, marginBottom: spacing.md },
+  emptyText: { fontFamily: fonts.regular, fontSize: 14, textAlign: 'center' },
   slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   slotBtn: {
-    backgroundColor: colors.card,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderWidth: 1.5,
-    borderColor: colors.primary,
     alignItems: 'center',
     minWidth: 80,
   },
-  slotTime: { fontFamily: fonts.semiBold, fontSize: 16, color: colors.primary },
-  slotTrainer: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  slotTime: { fontFamily: fonts.semiBold, fontSize: 16 },
+  slotTrainer: { fontFamily: fonts.regular, fontSize: 11, marginTop: 2 },
 
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
   },

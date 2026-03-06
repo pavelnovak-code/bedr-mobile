@@ -4,7 +4,8 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
-import { colors, fonts } from '../config/theme';
+import { fonts } from '../config/theme';
+import { useTheme } from '../context/ThemeContext';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -16,6 +17,8 @@ export type AuthStackParamList = {
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export default function AuthStack() {
+  const { colors } = useTheme();
+
   return (
     <Stack.Navigator
       screenOptions={{

@@ -10,6 +10,7 @@ import {
   Share,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
@@ -24,7 +25,10 @@ import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
 import Alert from '../../components/common/Alert';
-import { colors, fonts, spacing, radius } from '../../config/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, fonts, spacing, radius, gradients } from '../../config/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { formatDT } from '../../utils/dateFormat';
 
 type TabKey = 'info' | 'purchases' | 'lessons' | 'badges' | 'offers' | 'referral' | 'consent';
@@ -42,6 +46,7 @@ const TABS: { key: TabKey; label: string }[] = [
 export default function ProfileScreen() {
   const { user, logout, refreshUser } = useAuth();
   const { studioId } = useStudio();
+  const { colors, isDark, themeMode, setThemeMode } = useTheme();
   const [activeTab, setActiveTab] = useState<TabKey>('info');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -50,6 +55,7 @@ export default function ProfileScreen() {
   const [editPrijmeni, setEditPrijmeni] = useState(user?.prijmeni || '');
   const [editTelefon, setEditTelefon] = useState(user?.telefon || '');
   const [editAvatar, setEditAvatar] = useState(user?.avatar || 'avatar:1');
+  const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState<'success' | 'error'>('success');
@@ -120,21 +126,57 @@ export default function ProfileScreen() {
     setRefreshing(false);
   };
 
+  const handlePickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setLocalPhotoUri(result.assets[0].uri);
+      setEditAvatar('upload:photo'); // signalizuje že se uploadne fotka
+    }
+  };
+
   const handleSaveProfile = async () => {
     setSaving(true);
     setMsg('');
     try {
+      let avatarValue = editAvatar;
+
+      // Upload fotky pokud byla vybrána
+      if (localPhotoUri && editAvatar === 'upload:photo') {
+        const formData = new FormData();
+        formData.append('photo', {
+          uri: localPhotoUri,
+          type: 'image/jpeg',
+          name: 'avatar.jpg',
+        } as any);
+        const uploadResult = await usersApi.uploadAvatar(formData);
+        avatarValue = uploadResult.avatar;
+        setLocalPhotoUri(null);
+      }
+
       const updated = await usersApi.updateProfile({
         jmeno: editJmeno,
         prijmeni: editPrijmeni,
         telefon: editTelefon,
-        avatar: editAvatar,
+        avatar: avatarValue,
       });
+      setEditAvatar(updated.avatar || avatarValue);
       refreshUser(updated);
       setMsg('Profil uložen');
       setMsgType('success');
     } catch (e: any) {
-      setMsg(e.response?.data?.error || 'Nepodařilo se uložit');
+      console.warn('[Profile] Save error:', e.response?.status, e.response?.data, e.message);
+      const serverMsg = e.response?.data?.error
+        || (typeof e.response?.data === 'string' ? e.response.data : null)
+        || e.message
+        || 'Nepodařilo se uložit';
+      setMsg(serverMsg);
       setMsgType('error');
     } finally {
       setSaving(false);
@@ -182,12 +224,43 @@ export default function ProfileScreen() {
       case 'info':
         return (
           <Card>
-            <AvatarPicker selected={editAvatar} onSelect={setEditAvatar} />
+            <AvatarPicker
+              selected={editAvatar}
+              onSelect={(val) => { setEditAvatar(val); setLocalPhotoUri(null); }}
+              onPickPhoto={handlePickPhoto}
+              localPhotoUri={localPhotoUri}
+            />
             <Input label="Jméno" value={editJmeno} onChangeText={setEditJmeno} />
             <Input label="Příjmení" value={editPrijmeni} onChangeText={setEditPrijmeni} />
             <Input label="Telefon" value={editTelefon} onChangeText={setEditTelefon} keyboardType="phone-pad" />
             <Alert message={msg} type={msgType} visible={!!msg} onDismiss={() => setMsg('')} />
             <Button title="Uložit změny" onPress={handleSaveProfile} loading={saving} fullWidth />
+
+            {/* Dark mode toggle */}
+            <View style={[s.darkModeSection, { borderTopColor: colors.border }]}>
+              <Text style={[s.darkModeLabel, { color: colors.text }]}>Tmavý režim</Text>
+              <View style={s.darkModeOptions}>
+                {(['light', 'dark', 'system'] as const).map(mode => (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[
+                      s.darkModePill,
+                      { backgroundColor: colors.card },
+                      themeMode === mode && { backgroundColor: colors.primary },
+                    ]}
+                    onPress={() => setThemeMode(mode)}
+                  >
+                    <Text style={[
+                      s.darkModePillText,
+                      { color: colors.muted },
+                      themeMode === mode && { color: colors.white },
+                    ]}>
+                      {mode === 'light' ? '☀️ Světlý' : mode === 'dark' ? '🌙 Tmavý' : '⚙️ Systém'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           </Card>
         );
 
@@ -394,29 +467,45 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      {/* Header */}
-      <View style={s.profileHeader}>
-        <Avatar avatar={user?.avatar || null} size={56} />
-        <View style={s.profileInfo}>
-          <Text style={s.profileName}>{user?.jmeno} {user?.prijmeni}</Text>
-          <Text style={s.profileEmail}>{user?.email}</Text>
-        </View>
-        <TouchableOpacity onPress={logout} style={s.logoutBtn}>
-          <Text style={s.logoutText}>Odhlásit</Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={[s.safe, { backgroundColor: colors.bg }]} edges={['bottom', 'left', 'right']}>
+      {/* Gradient Hero Header */}
+      <LinearGradient
+        colors={gradients.sport}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={s.heroHeader}
+      >
+        <SafeAreaView edges={['top']} style={s.heroInner}>
+          <Avatar avatar={user?.avatar || null} size={64} />
+          <View style={s.profileInfo}>
+            <Text style={s.profileName}>{user?.jmeno} {user?.prijmeni}</Text>
+            <Text style={s.profileEmail}>{user?.email}</Text>
+          </View>
+          <TouchableOpacity onPress={logout} style={s.logoutBtn}>
+            <Ionicons name="log-out-outline" size={20} color="rgba(255,255,255,0.8)" />
+            <Text style={s.logoutText}>Odhlásit</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      </LinearGradient>
 
       {/* Tab pills */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabBar}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.tabBar, { backgroundColor: colors.bg }]}>
         <View style={s.tabRow}>
           {TABS.map(tab => (
             <TouchableOpacity
               key={tab.key}
               onPress={() => setActiveTab(tab.key)}
-              style={[s.tabPill, activeTab === tab.key && s.tabPillActive]}
+              style={[
+                s.tabPill,
+                { backgroundColor: colors.card },
+                activeTab === tab.key && { backgroundColor: colors.primary },
+              ]}
             >
-              <Text style={[s.tabText, activeTab === tab.key && s.tabTextActive]}>
+              <Text style={[
+                s.tabText,
+                { color: colors.muted },
+                activeTab === tab.key && { color: colors.white },
+              ]}>
                 {tab.label}
               </Text>
             </TouchableOpacity>
@@ -438,21 +527,34 @@ export default function ProfileScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1 },
 
-  // Profile header
-  profileHeader: {
-    flexDirection: 'row', alignItems: 'center', padding: spacing.lg,
-    backgroundColor: colors.card, gap: spacing.md,
+  // Gradient hero header
+  heroHeader: {},
+  heroInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
   profileInfo: { flex: 1 },
-  profileName: { fontFamily: fonts.semiBold, fontSize: 17, color: colors.text },
-  profileEmail: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
-  logoutBtn: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
-  logoutText: { fontFamily: fonts.medium, fontSize: 13, color: colors.danger },
+  profileName: { fontFamily: fonts.headingBold, fontSize: 20, color: '#ffffff' },
+  profileEmail: { fontFamily: fonts.regular, fontSize: 13, color: 'rgba(255,255,255,0.75)' },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: radius.full,
+  },
+  logoutText: { fontFamily: fonts.medium, fontSize: 12, color: 'rgba(255,255,255,0.9)' },
 
   // Tabs
-  tabBar: { backgroundColor: colors.card, maxHeight: 48 },
+  tabBar: { backgroundColor: colors.bg, maxHeight: 48 },
   tabRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   tabPill: {
     paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
@@ -532,6 +634,43 @@ const s = StyleSheet.create({
   refStat: { alignItems: 'center' },
   refNum: { fontFamily: fonts.bold, fontSize: 22, color: colors.text },
   refStatLabel: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+
+  // Dark mode
+  darkModeSection: {
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  darkModeLabel: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  darkModeOptions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  darkModePill: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.full,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+  },
+  darkModePillActive: {
+    backgroundColor: colors.primary,
+  },
+  darkModePillText: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: colors.muted,
+  },
+  darkModePillTextActive: {
+    color: colors.white,
+  },
 
   // Consent
   consentHeading: { fontFamily: fonts.heading, fontSize: 16, color: colors.text, marginBottom: spacing.lg },
