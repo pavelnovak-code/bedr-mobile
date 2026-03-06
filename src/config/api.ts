@@ -39,6 +39,7 @@ export const endpoints = {
   badges:          '/api/users/badges',
   myLessons:       '/api/users/lessons',
   gdprConsent:     '/api/users/consent',
+  myLessons:       '/api/users/lessons',
 
   // Reservations
   myReservations:  '/api/reservations',

@@ -21,6 +21,7 @@ import Alert from '../../components/common/Alert';
 import Card from '../../components/common/Card';
 import StepIndicator from '../../components/common/StepIndicator';
 import { fonts, spacing } from '../../config/theme';
+import { formatPrice } from '../../utils/formatPrice';
 
 type Props = NativeStackScreenProps<BookingStackParamList, 'ConfirmPay'>;
 
@@ -128,7 +129,7 @@ export default function ConfirmPayScreen({ navigation, route }: Props) {
         </View>
         <View style={[styles.summaryRow, styles.priceRow, { borderTopColor: colors.border }]}>
           <Text style={[styles.priceLabel, { color: colors.text }]}>Cena</Text>
-          <Text style={[styles.priceValue, { color: colors.primary }]}>{price} Kč</Text>
+          <Text style={[styles.priceValue, { color: colors.primary }]}>{formatPrice(price)}</Text>
         </View>
       </Card>
 
@@ -163,7 +164,7 @@ export default function ConfirmPayScreen({ navigation, route }: Props) {
       </Text>
 
       <GradientButton
-        title={`Objednat za ${price} Kč`}
+        title={`Objednat za ${formatPrice(price)}`}
         onPress={handleConfirm}
         loading={loading}
         fullWidth

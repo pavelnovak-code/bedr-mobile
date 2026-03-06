@@ -18,6 +18,7 @@ import Spinner from '../../components/common/Spinner';
 import Card from '../../components/common/Card';
 import StepIndicator from '../../components/common/StepIndicator';
 import { fonts, spacing, radius } from '../../config/theme';
+import { formatPrice } from '../../utils/formatPrice';
 
 type Props = NativeStackScreenProps<BookingStackParamList, 'PackageSelect'>;
 
@@ -104,10 +105,10 @@ export default function PackageSelectScreen({ navigation }: Props) {
                         )}
                       </View>
                       <View style={[styles.priceBox, { backgroundColor: colors.primaryLight }]}>
-                        <Text style={[styles.priceText, { color: colors.primary }]}>{pkg.price} Kč</Text>
+                        <Text style={[styles.priceText, { color: colors.primary }]}>{formatPrice(pkg.price)}</Text>
                         {pkg.lesson_count > 1 && (
                           <Text style={[styles.pricePerLesson, { color: colors.muted }]}>
-                            {Math.round(pkg.price / pkg.lesson_count)} Kč/lekce
+                            {formatPrice(Math.round(pkg.price / pkg.lesson_count))}/lekce
                           </Text>
                         )}
                       </View>
@@ -141,10 +142,10 @@ export default function PackageSelectScreen({ navigation }: Props) {
                         )}
                       </View>
                       <View style={[styles.priceBox, { backgroundColor: colors.primaryLight }]}>
-                        <Text style={[styles.priceText, { color: colors.primary }]}>{pkg.price} Kč</Text>
+                        <Text style={[styles.priceText, { color: colors.primary }]}>{formatPrice(pkg.price)}</Text>
                         {pkg.lesson_count > 1 && (
                           <Text style={[styles.pricePerLesson, { color: colors.muted }]}>
-                            {Math.round(pkg.price / pkg.lesson_count)} Kč/lekce
+                            {formatPrice(Math.round(pkg.price / pkg.lesson_count))}/lekce
                           </Text>
                         )}
                       </View>

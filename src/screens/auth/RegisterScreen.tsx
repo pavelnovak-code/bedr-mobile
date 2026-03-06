@@ -36,6 +36,7 @@ export default function RegisterScreen({ route }: Props) {
   const [studioId, setStudioId] = useState<number | null>(null);
   const [referralCode, setReferralCode] = useState(route.params?.referralCode || '');
   const [gdprConsent, setGdprConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
 
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(false);
@@ -57,6 +58,7 @@ export default function RegisterScreen({ route }: Props) {
     if (!email.trim()) return 'Vyplňte email';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Neplatný email';
     if (password.length < 6) return 'Heslo musí mít alespoň 6 znaků';
+    if (!telefon.trim()) return 'Vyplňte telefon';
     if (!gdprConsent) return 'Musíte souhlasit se zpracováním osobních údajů';
     return null;
   };
@@ -77,7 +79,8 @@ export default function RegisterScreen({ route }: Props) {
         avatar,
         studio_id: studioId || undefined,
         referral_code: referralCode.trim() || undefined,
-        gdpr_consent: true,
+        gdpr_souhlas: 1,
+        consent_marketing: marketingConsent ? 1 : 0,
       });
     } catch (e: any) {
       setError(e.response?.data?.error || e.message || 'Registrace se nezdařila');
@@ -130,7 +133,7 @@ export default function RegisterScreen({ route }: Props) {
             isPassword
           />
           <Input
-            label="Telefon"
+            label="Telefon *"
             placeholder="+420 xxx xxx xxx"
             value={telefon}
             onChangeText={setTelefon}
@@ -176,11 +179,23 @@ export default function RegisterScreen({ route }: Props) {
             <Switch
               value={gdprConsent}
               onValueChange={setGdprConsent}
-              trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={gdprConsent ? colors.primary : '#f4f3f4'}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor="#ffffff"
             />
             <Text style={[styles.gdprText, { color: colors.text }]}>
               Souhlasím se zpracováním osobních údajů *
+            </Text>
+          </View>
+
+          <View style={styles.gdprRow}>
+            <Switch
+              value={marketingConsent}
+              onValueChange={setMarketingConsent}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor="#ffffff"
+            />
+            <Text style={[styles.gdprText, { color: colors.muted }]}>
+              Souhlas s marketingovou komunikací (nepovinné)
             </Text>
           </View>
 

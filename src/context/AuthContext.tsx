@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { User, AuthResponse } from '../api/types';
 import * as authApi from '../api/auth';
 import { getProfile } from '../api/users';
-import { getToken, setToken, clearAuth, parseJwtPayload } from '../utils/storage';
+import { getToken, setToken, clearAuth, clearPin, setBiometricEnabled, parseJwtPayload } from '../utils/storage';
+import { setUnauthorizedHandler } from '../api/client';
 
 interface AuthState {
   user: User | null;
@@ -41,33 +42,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Při startu apky zkontroluj uložený token
+  // Při startu apky zkontroluj uložený token (BEZ kontroly expirace —
+  // server vrátí 401 pokud je neplatný, app se neodhlašuje při zavření)
   useEffect(() => {
     (async () => {
       try {
         const savedToken = await getToken();
         if (savedToken) {
           const payload = parseJwtPayload(savedToken);
-          if (payload && typeof payload.exp === 'number') {
-            const now = Math.floor(Date.now() / 1000);
-            if (payload.exp > now) {
-              // Token platný → přihlas uživatele s daty z JWT (provizorně)
-              setState({
-                user: payload as unknown as User,
-                token: savedToken,
-                isLoading: false,
-                isLoggedIn: true,
-              });
-              return;
-            }
-          }
-          await clearAuth();
+          // Token existuje → přihlas uživatele lokálně (server ověří při API callech)
+          setState({
+            user: payload as unknown as User,
+            token: savedToken,
+            isLoading: false,
+            isLoggedIn: true,
+          });
+          return;
         }
       } catch {
-        await clearAuth();
+        // Token nelze přečíst → pokračuj jako nepřihlášený
       }
       setState(s => ({ ...s, isLoading: false }));
     })();
+  }, []);
+
+  // Registruj handler pro 401 (expired token) z API clienta
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setState({ user: null, token: null, isLoading: false, isLoggedIn: false });
+    });
   }, []);
 
   // Jakmile je uživatel přihlášen, stáhni plný profil
@@ -111,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await clearAuth();
+    await clearPin();
+    await setBiometricEnabled(false);
     setState({
       user: null,
       token: null,

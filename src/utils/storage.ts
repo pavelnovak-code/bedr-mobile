@@ -41,6 +41,62 @@ export async function clearStudioId(): Promise<void> {
   await AsyncStorage.removeItem(STUDIO_KEY);
 }
 
+// ── Tutorial overlay ────────────────────────────────────────────────────────
+
+const TUTORIAL_KEY = 'bedr_tutorial_swipe_seen';
+
+export async function getTutorialSeen(): Promise<boolean> {
+  try {
+    const val = await AsyncStorage.getItem(TUTORIAL_KEY);
+    return val === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setTutorialSeen(): Promise<void> {
+  await AsyncStorage.setItem(TUTORIAL_KEY, 'true');
+}
+
+// ── PIN & Biometric ─────────────────────────────────────────────────────────
+
+const PIN_KEY = 'bedr_user_pin';
+const BIOMETRIC_KEY = 'bedr_biometric_enabled';
+
+export async function getPinHash(): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(PIN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setPinHash(hash: string): Promise<void> {
+  await SecureStore.setItemAsync(PIN_KEY, hash);
+}
+
+export async function clearPin(): Promise<void> {
+  await SecureStore.deleteItemAsync(PIN_KEY);
+}
+
+export async function isPinSetup(): Promise<boolean> {
+  const pin = await getPinHash();
+  return !!pin;
+}
+
+export async function isBiometricEnabled(): Promise<boolean> {
+  try {
+    const val = await AsyncStorage.getItem(BIOMETRIC_KEY);
+    return val === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setBiometricEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(BIOMETRIC_KEY, enabled ? 'true' : 'false');
+}
+
 // ── Parse JWT payload ───────────────────────────────────────────────────────
 
 export function parseJwtPayload(token: string): Record<string, unknown> | null {

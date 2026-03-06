@@ -30,8 +30,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing, radius, gradients } from '../../config/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { formatDT } from '../../utils/dateFormat';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { isBiometricEnabled, setBiometricEnabled } from '../../utils/storage';
 
-type TabKey = 'info' | 'purchases' | 'lessons' | 'badges' | 'offers' | 'referral' | 'consent';
+type TabKey = 'info' | 'purchases' | 'lessons' | 'badges' | 'offers' | 'referral';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'info', label: 'Profil' },
@@ -40,7 +42,6 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'badges', label: 'Odznaky' },
   { key: 'offers', label: 'Nabídky' },
   { key: 'referral', label: 'Pozvi kamaráda' },
-  { key: 'consent', label: 'GDPR' },
 ];
 
 export default function ProfileScreen() {
@@ -75,6 +76,10 @@ export default function ProfileScreen() {
   const [inviteMsg, setInviteMsg] = useState('');
   const [inviteMsgType, setInviteMsgType] = useState<'success' | 'error'>('success');
 
+  // Face ID
+  const [faceIdEnabled, setFaceIdEnabled] = useState(false);
+  const [faceIdAvailable, setFaceIdAvailable] = useState(false);
+
   // Sync consent stavu s user objektem (načte se async z profilu)
   useEffect(() => {
     if (user) {
@@ -82,6 +87,21 @@ export default function ProfileScreen() {
       setConsentSystem(!!user.consent_system);
     }
   }, [user]);
+
+  // Načtení stavu Face ID
+  useEffect(() => {
+    (async () => {
+      try {
+        const available = await LocalAuthentication.hasHardwareAsync();
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+        setFaceIdAvailable(available && enrolled);
+        if (available && enrolled) {
+          const enabled = await isBiometricEnabled();
+          setFaceIdEnabled(enabled);
+        }
+      } catch {}
+    })();
+  }, []);
 
   const handleCopyPromoCode = async (code: string) => {
     await Clipboard.setStringAsync(code);
@@ -190,6 +210,25 @@ export default function ProfileScreen() {
     });
   };
 
+  const handleFaceIdToggle = async (val: boolean) => {
+    if (val) {
+      // Zapínáme — ověříme biometrií
+      try {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Ověření pro zapnutí Face ID',
+          cancelLabel: 'Zrušit',
+        });
+        if (result.success) {
+          await setBiometricEnabled(true);
+          setFaceIdEnabled(true);
+        }
+      } catch {}
+    } else {
+      await setBiometricEnabled(false);
+      setFaceIdEnabled(false);
+    }
+  };
+
   const handleConsentMarketingChange = async (val: boolean) => {
     setConsentMarketing(val);
     try { await usersApi.updateConsent({ consent_marketing: val }); } catch {}
@@ -260,6 +299,56 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
+
+            {/* Face ID toggle */}
+            {faceIdAvailable && (
+              <View style={s.settingRow}>
+                <View style={s.settingInfo}>
+                  <Ionicons name="finger-print-outline" size={20} color={colors.text} />
+                  <Text style={[s.settingLabel, { color: colors.text }]}>Face ID / otisk prstu</Text>
+                </View>
+                <Switch
+                  value={faceIdEnabled}
+                  onValueChange={handleFaceIdToggle}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor="#ffffff"
+                />
+              </View>
+            )}
+
+            {/* Consent toggles */}
+            <View style={[s.consentSection, { borderTopColor: colors.border }]}>
+              <Text style={[s.darkModeLabel, { color: colors.text }]}>Souhlasy</Text>
+              <View style={s.settingRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.settingLabel, { color: colors.text }]}>Marketingová komunikace</Text>
+                  <Text style={[s.settingDesc, { color: colors.muted }]}>E-maily o novinkách a akcích</Text>
+                </View>
+                <Switch
+                  value={consentMarketing}
+                  onValueChange={handleConsentMarketingChange}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor="#ffffff"
+                />
+              </View>
+              <View style={s.settingRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.settingLabel, { color: colors.text }]}>Systémová oznámení</Text>
+                  <Text style={[s.settingDesc, { color: colors.muted }]}>Připomínky lekcí, změny v rozvrhu</Text>
+                </View>
+                <Switch
+                  value={consentSystem}
+                  onValueChange={handleConsentSystemChange}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor="#ffffff"
+                />
+              </View>
+              {user?.gdpr_souhlas ? (
+                <Text style={[s.consentGdpr, { color: colors.success }]}>
+                  Souhlas se zpracováním osobních údajů udělen{user.gdpr_datum ? ` dne ${new Date(user.gdpr_datum).toLocaleDateString('cs-CZ')}` : ''}
+                </Text>
+              ) : null}
             </View>
           </Card>
         );
@@ -432,37 +521,7 @@ export default function ProfileScreen() {
           </>
         );
 
-      case 'consent':
-        return (
-          <Card>
-            <Text style={[s.consentHeading, { color: colors.text }]}>Správa souhlasů</Text>
-            <View style={s.consentRow}>
-              <Text style={[s.consentText, { color: colors.text }]}>Marketingová komunikace</Text>
-              <Switch
-                value={consentMarketing}
-                onValueChange={handleConsentMarketingChange}
-                trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={consentMarketing ? colors.primary : '#f4f3f4'}
-              />
-            </View>
-            <Text style={[s.consentDesc, { color: colors.muted }]}>E-maily o novinkách, akcích a speciálních nabídkách</Text>
-            <View style={[s.consentRow, { marginTop: spacing.lg }]}>
-              <Text style={[s.consentText, { color: colors.text }]}>Systémová oznámení</Text>
-              <Switch
-                value={consentSystem}
-                onValueChange={handleConsentSystemChange}
-                trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={consentSystem ? colors.primary : '#f4f3f4'}
-              />
-            </View>
-            <Text style={[s.consentDesc, { color: colors.muted }]}>Připomínky lekcí, změny v rozvrhu, informace o účtu</Text>
-            {user?.gdpr_souhlas ? (
-              <Text style={[s.consentGdpr, { color: colors.success }]}>
-                Souhlas se zpracováním osobních údajů udělen{user.gdpr_datum ? ` dne ${new Date(user.gdpr_datum).toLocaleDateString('cs-CZ')}` : ''}
-              </Text>
-            ) : null}
-          </Card>
-        );
+      // consent tab removed - přesunuto do info tabu
     }
   };
 
@@ -672,7 +731,35 @@ const s = StyleSheet.create({
     color: colors.white,
   },
 
-  // Consent
+  // Settings rows (Face ID, Consent in info tab)
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.lg,
+  },
+  settingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  settingLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+  },
+  settingDesc: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  consentSection: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+  },
+
+  // Consent (legacy styles kept for compatibility)
   consentHeading: { fontFamily: fonts.heading, fontSize: 16, color: colors.text, marginBottom: spacing.lg },
   consentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   consentText: { fontFamily: fonts.medium, fontSize: 14, color: colors.text, flex: 1 },

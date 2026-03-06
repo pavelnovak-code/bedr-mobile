@@ -27,6 +27,8 @@ import Spinner from '../../components/common/Spinner';
 import Button from '../../components/common/Button';
 import SwipeableRow from '../../components/common/SwipeableRow';
 import RescheduleModal from '../../components/dashboard/RescheduleModal';
+import TutorialOverlay from '../../components/common/TutorialOverlay';
+import { getTutorialSeen, setTutorialSeen } from '../../utils/storage';
 import { fonts, spacing, radius, shadows, gradients } from '../../config/theme';
 
 export default function DashboardScreen() {
@@ -43,6 +45,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [rescheduleId, setRescheduleId] = useState<number | null>(null);
   const [rescheduleLtCode, setRescheduleLtCode] = useState<string | undefined>(undefined);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const loadData = useCallback(async () => {
     console.log('[Dashboard] loadData, studioId:', studioId);
@@ -74,6 +77,16 @@ export default function DashboardScreen() {
     }
     setLoading(false);
   }, [studioId]);
+
+  // Zobrazit tutoriál při prvním zobrazení s lekcemi
+  const checkTutorial = useCallback(async () => {
+    if (reservations.length > 0) {
+      const seen = await getTutorialSeen();
+      if (!seen) setShowTutorial(true);
+    }
+  }, [reservations.length]);
+
+  useFocusEffect(useCallback(() => { checkTutorial(); }, [checkTutorial]));
 
   useFocusEffect(
     useCallback(() => {
@@ -308,6 +321,15 @@ export default function DashboardScreen() {
         onMoved={() => {
           setRescheduleId(null);
           loadData();
+        }}
+      />
+
+      <TutorialOverlay
+        visible={showTutorial}
+        onDismiss={() => setShowTutorial(false)}
+        onNeverShow={async () => {
+          await setTutorialSeen();
+          setShowTutorial(false);
         }}
       />
     </SafeAreaView>

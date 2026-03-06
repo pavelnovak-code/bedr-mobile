@@ -16,7 +16,8 @@ export async function register(payload: {
   avatar?: string;
   studio_id?: number;
   referral_code?: string;
-  gdpr_consent: boolean;
+  gdpr_souhlas: number;
+  consent_marketing?: number;
 }): Promise<AuthResponse> {
   const { data } = await apiClient.post(endpoints.register, payload);
   return data;

@@ -26,14 +26,15 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#006085"
       },
-      "package": "cz.bedr.mobile"
+      "package": "cz.bedr.mobile",
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "expo-secure-store",
       "expo-notifications",
       "expo-image-picker",
       "expo-asset",
-      "expo-system-ui"
+      "expo-av"
     ]
   }
 }
