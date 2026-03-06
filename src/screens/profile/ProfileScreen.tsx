@@ -266,7 +266,7 @@ export default function ProfileScreen() {
 
       case 'purchases':
         return purchases.length === 0
-          ? <Card><Text style={s.emptyText}>Žádné nákupy</Text></Card>
+          ? <Card><Text style={[s.emptyText, { color: colors.muted }]}>Žádné nákupy</Text></Card>
           : purchases.map(p => {
             const remaining = p.lessons_remaining || 0;
             const isGift = p.payment_method === 'bonus';
@@ -284,42 +284,42 @@ export default function ProfileScreen() {
             return (
               <Card key={p.id} style={[s.itemCard, p.pkg_status !== 'active' && s.itemCardInactive]}>
                 <View style={s.purchaseHeader}>
-                  <Text style={s.itemTitle}>{p.package_name}</Text>
+                  <Text style={[s.itemTitle, { color: colors.text }]}>{p.package_name}</Text>
                   <View style={[s.statusBadge, { backgroundColor: statusColor + '20' }]}>
                     <Text style={[s.statusBadgeText, { color: statusColor }]}>{statusLabel}</Text>
                   </View>
                 </View>
                 {isGift && (
-                  <View style={s.giftBadge}>
-                    <Text style={s.giftBadgeText}>
+                  <View style={[s.giftBadge, { backgroundColor: isDark ? 'rgba(245,166,35,0.15)' : '#fef3c7' }]}>
+                    <Text style={[s.giftBadgeText, { color: isDark ? colors.accent : '#92400e' }]}>
                       🎁 Dárek{p.referred_friend_name ? ` za doporučení ${p.referred_friend_name}` : ''}
                     </Text>
                   </View>
                 )}
-                <Text style={s.itemMeta}>
+                <Text style={[s.itemMeta, { color: colors.muted }]}>
                   Zbývá lekcí: {remaining} • {isGift ? '🎁 Dárek' : paid ? 'Zaplaceno' : 'Nezaplaceno'}
                 </Text>
-                {validityText ? <Text style={s.itemDate}>{validityText}</Text> : null}
+                {validityText ? <Text style={[s.itemDate, { color: colors.muted }]}>{validityText}</Text> : null}
               </Card>
             );
           });
 
       case 'lessons':
         return reservations.length === 0
-          ? <Card><Text style={s.emptyText}>Žádné lekce</Text></Card>
+          ? <Card><Text style={[s.emptyText, { color: colors.muted }]}>Žádné lekce</Text></Card>
           : reservations.map(r => (
             <Card key={r.id} style={s.itemCard}>
               <View style={s.lessonRow}>
-                <Text style={s.itemTitle}>{formatDT(r.slot_datetime)}</Text>
-                {r.completed ? <Text style={s.doneBadge}>✓</Text> : null}
+                <Text style={[s.itemTitle, { color: colors.text }]}>{formatDT(r.slot_datetime)}</Text>
+                {r.completed ? <Text style={[s.doneBadge, { color: colors.success }]}>✓</Text> : null}
               </View>
-              <Text style={s.itemMeta}>{r.package_name} • {r.lt_code === 'B' ? '60 min' : '30 min'}</Text>
+              <Text style={[s.itemMeta, { color: colors.muted }]}>{r.package_name} • {r.lt_code === 'B' ? '60 min' : '30 min'}</Text>
             </Card>
           ));
 
       case 'badges':
         return badges.length === 0
-          ? <Card><Text style={s.emptyText}>Zatím žádné odznaky</Text></Card>
+          ? <Card><Text style={[s.emptyText, { color: colors.muted }]}>Zatím žádné odznaky</Text></Card>
           : badges.map(b => {
             const pct = b.progress_total > 0
               ? Math.min(100, Math.round((b.progress_current / b.progress_total) * 100))
@@ -328,14 +328,14 @@ export default function ProfileScreen() {
               <Card key={b.id} style={s.badgeCard}>
                 <Text style={s.badgeIcon}>{b.emoji}</Text>
                 <View style={s.badgeInfo}>
-                  <Text style={[s.badgeName, b.earned && { color: colors.success }]}>
+                  <Text style={[s.badgeName, { color: colors.text }, b.earned && { color: colors.success }]}>
                     {b.name} {b.earned ? '✓' : ''}
                   </Text>
-                  <Text style={s.badgeDesc}>{b.description}</Text>
-                  <View style={s.progressBg}>
+                  <Text style={[s.badgeDesc, { color: colors.muted }]}>{b.description}</Text>
+                  <View style={[s.progressBg, { backgroundColor: colors.border }]}>
                     <View style={[s.progressFill, { width: `${pct}%`, backgroundColor: b.earned ? colors.success : colors.primary }]} />
                   </View>
-                  <Text style={s.badgeProgress}>{b.progress_current} / {b.progress_total}</Text>
+                  <Text style={[s.badgeProgress, { color: colors.muted }]}>{b.progress_current} / {b.progress_total}</Text>
                 </View>
               </Card>
             );
@@ -343,7 +343,7 @@ export default function ProfileScreen() {
 
       case 'offers':
         return offers.length === 0
-          ? <Card><Text style={s.emptyText}>Žádné nabídky</Text></Card>
+          ? <Card><Text style={[s.emptyText, { color: colors.muted }]}>Žádné nabídky</Text></Card>
           : offers.map(o => {
             let discountText = '';
             if (o.discount_type === 'percent') discountText = `-${o.discount_value}%`;
@@ -351,22 +351,22 @@ export default function ProfileScreen() {
             else if (o.discount_type === 'free_package') discountText = 'Zdarma';
             return (
               <Card key={o.id} style={s.itemCard}>
-                <Text style={s.itemTitle}>{o.title}</Text>
-                <Text style={s.itemMeta}>{o.perex}</Text>
+                <Text style={[s.itemTitle, { color: colors.text }]}>{o.title}</Text>
+                <Text style={[s.itemMeta, { color: colors.muted }]}>{o.perex}</Text>
                 {o.promo_code && (
                   <TouchableOpacity
-                    style={s.promoCodeRow}
+                    style={[s.promoCodeRow, { backgroundColor: colors.primaryLight }]}
                     onPress={() => handleCopyPromoCode(o.promo_code!)}
                     activeOpacity={0.7}
                   >
-                    <Text style={s.promoCode}>Kód: {o.promo_code}</Text>
-                    <Text style={s.copyBtn}>
+                    <Text style={[s.promoCode, { color: colors.primary }]}>Kód: {o.promo_code}</Text>
+                    <Text style={[s.copyBtn, { color: colors.primaryDark }]}>
                       {copiedCode === o.promo_code ? '✓ Zkopírováno' : '📋 Kopírovat'}
                     </Text>
                   </TouchableOpacity>
                 )}
-                {discountText ? <Text style={s.offerDiscount}>{discountText}</Text> : null}
-                {o.redeemed_at && <Text style={s.redeemedText}>Uplatněno</Text>}
+                {discountText ? <Text style={[s.offerDiscount, { color: colors.success }]}>{discountText}</Text> : null}
+                {o.redeemed_at && <Text style={[s.redeemedText, { color: colors.success }]}>Uplatněno</Text>}
               </Card>
             );
           });
@@ -376,30 +376,30 @@ export default function ProfileScreen() {
           <>
             {/* Kód */}
             <Card>
-              <Text style={s.refHeading}>Váš kód pro pozvání</Text>
+              <Text style={[s.refHeading, { color: colors.text }]}>Váš kód pro pozvání</Text>
               <TouchableOpacity
                 onPress={() => referralInfo?.referral_code && handleCopyPromoCode(referralInfo.referral_code)}
                 activeOpacity={0.7}
-                style={s.refCodeBox}
+                style={[s.refCodeBox, { backgroundColor: colors.primaryLight }]}
               >
-                <Text style={s.refCode}>{referralInfo?.referral_code || '...'}</Text>
-                <Text style={s.refCopyHint}>
+                <Text style={[s.refCode, { color: colors.primary }]}>{referralInfo?.referral_code || '...'}</Text>
+                <Text style={[s.refCopyHint, { color: colors.primaryDark }]}>
                   {copiedCode === referralInfo?.referral_code ? '✓ Zkopírováno' : '📋 Kopírovat'}
                 </Text>
               </TouchableOpacity>
               {referralStats && (
                 <View style={s.refStats}>
                   <View style={s.refStat}>
-                    <Text style={s.refNum}>{referralStats.invites_sent}</Text>
-                    <Text style={s.refStatLabel}>Pozváno</Text>
+                    <Text style={[s.refNum, { color: colors.text }]}>{referralStats.invites_sent}</Text>
+                    <Text style={[s.refStatLabel, { color: colors.muted }]}>Pozváno</Text>
                   </View>
                   <View style={s.refStat}>
-                    <Text style={s.refNum}>{referralStats.completed}</Text>
-                    <Text style={s.refStatLabel}>Úspěšných</Text>
+                    <Text style={[s.refNum, { color: colors.text }]}>{referralStats.completed}</Text>
+                    <Text style={[s.refStatLabel, { color: colors.muted }]}>Úspěšných</Text>
                   </View>
                   <View style={s.refStat}>
-                    <Text style={s.refNum}>{referralStats.rewards}</Text>
-                    <Text style={s.refStatLabel}>Odměn</Text>
+                    <Text style={[s.refNum, { color: colors.text }]}>{referralStats.rewards}</Text>
+                    <Text style={[s.refStatLabel, { color: colors.muted }]}>Odměn</Text>
                   </View>
                 </View>
               )}
@@ -408,7 +408,7 @@ export default function ProfileScreen() {
 
             {/* Pozvat emailem */}
             <Card style={{ marginTop: spacing.md }}>
-              <Text style={s.refHeading}>Pozvat e-mailem</Text>
+              <Text style={[s.refHeading, { color: colors.text }]}>Pozvat e-mailem</Text>
               <Input
                 placeholder="E-mail kamaráda"
                 value={inviteEmail}
@@ -417,7 +417,7 @@ export default function ProfileScreen() {
                 autoCapitalize="none"
               />
               {inviteMsg ? (
-                <Text style={[s.inviteMsg, inviteMsgType === 'error' ? s.inviteMsgErr : s.inviteMsgOk]}>
+                <Text style={[s.inviteMsg, inviteMsgType === 'error' ? { color: colors.danger } : { color: colors.success }]}>
                   {inviteMsg}
                 </Text>
               ) : null}
@@ -435,9 +435,9 @@ export default function ProfileScreen() {
       case 'consent':
         return (
           <Card>
-            <Text style={s.consentHeading}>Správa souhlasů</Text>
+            <Text style={[s.consentHeading, { color: colors.text }]}>Správa souhlasů</Text>
             <View style={s.consentRow}>
-              <Text style={s.consentText}>Marketingová komunikace</Text>
+              <Text style={[s.consentText, { color: colors.text }]}>Marketingová komunikace</Text>
               <Switch
                 value={consentMarketing}
                 onValueChange={handleConsentMarketingChange}
@@ -445,9 +445,9 @@ export default function ProfileScreen() {
                 thumbColor={consentMarketing ? colors.primary : '#f4f3f4'}
               />
             </View>
-            <Text style={s.consentDesc}>E-maily o novinkách, akcích a speciálních nabídkách</Text>
+            <Text style={[s.consentDesc, { color: colors.muted }]}>E-maily o novinkách, akcích a speciálních nabídkách</Text>
             <View style={[s.consentRow, { marginTop: spacing.lg }]}>
-              <Text style={s.consentText}>Systémová oznámení</Text>
+              <Text style={[s.consentText, { color: colors.text }]}>Systémová oznámení</Text>
               <Switch
                 value={consentSystem}
                 onValueChange={handleConsentSystemChange}
@@ -455,9 +455,9 @@ export default function ProfileScreen() {
                 thumbColor={consentSystem ? colors.primary : '#f4f3f4'}
               />
             </View>
-            <Text style={s.consentDesc}>Připomínky lekcí, změny v rozvrhu, informace o účtu</Text>
+            <Text style={[s.consentDesc, { color: colors.muted }]}>Připomínky lekcí, změny v rozvrhu, informace o účtu</Text>
             {user?.gdpr_souhlas ? (
-              <Text style={s.consentGdpr}>
+              <Text style={[s.consentGdpr, { color: colors.success }]}>
                 Souhlas se zpracováním osobních údajů udělen{user.gdpr_datum ? ` dne ${new Date(user.gdpr_datum).toLocaleDateString('cs-CZ')}` : ''}
               </Text>
             ) : null}
